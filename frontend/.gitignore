@@ -8,8 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
-dist-ssr
+# dist  # 保留预构建产物用于直接部署
+# dist-ssr
 *.local
 
 # Editor directories and files
