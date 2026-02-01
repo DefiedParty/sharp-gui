@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharp GUI - 本地化 3D 高斯溅射</title>
+    <meta name="description" content="一个精美的 3D 高斯溅射 (Gaussian Splatting) 图形化界面,基于 Apple ml-sharp,本地部署,全屋访问。">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Sharp GUI" />
+
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入 Remix Icon 图标库 -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- 引入 Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- 动态背景 -->
+    <div class="ambient-light"></div>
+    <div class="ambient-light light-2"></div>
+
+    <!-- 导航栏 -->
+    <nav class="navbar glass">
+        <div class="nav-content">
+            <div class="logo">
+                <!-- 引用你的 Logo -->
+                <img src="./images/logo.png" alt="Sharp GUI Logo" onerror="this.style.display='none'">
+                <span>Sharp GUI</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features" data-i18n="nav.features">特性</a>
+                <a href="#showcase" data-i18n="nav.showcase">演示</a>
+                <a href="#architecture" data-i18n="nav.architecture">架构</a>
+                <a href="#install" data-i18n="nav.install">安装</a>
+                <a href="https://github.com/lueluelue12138/sharp-gui" target="_blank" class="github-btn">
+                    <i class="ri-github-fill"></i> GitHub
+                </a>
+                <button id="lang-switch-btn" class="lang-btn" onclick="toggleLanguage()">EN</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 首屏 Hero 区域 -->
+    <header class="hero-section">
+        <div class="container">
+            <div class="hero-text fade-in-up">
+                <div class="badge" data-i18n="hero.badge">✨ 本地化 3D Gaussian Splatting</div>
+                <h1 data-i18n="hero.title">你的空间记忆<br>触手可及</h1>
+                <p class="subtitle" data-i18n="hero.subtitle">打破设备界限，一次部署，全屋访问。无需云端上传，在浏览器中即可生成并漫游令人惊叹的 3D 场景。</p>
+                <div class="cta-group">
+                    <a href="#install" class="btn btn-primary">
+                        <i class="ri-rocket-line"></i> <span data-i18n="hero.cta.start">快速开始</span>
+                    </a>
+                    <a href="https://github.com/lueluelue12138/sharp-gui" target="_blank" class="btn btn-secondary">
+                        <i class="ri-star-line"></i> <span data-i18n="hero.cta.github">Star on GitHub</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="hero-image fade-in-up delay-200">
+                <div class="window-frame glass">
+                    <div class="window-header">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <!-- 引用主界面截图 -->
+                    <img src="./images/main.png" alt="Sharp GUI Interface">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 新增：现代工作流展示 (Modern Workflow) -->
+    <section class="workflow-section">
+        <div class="container">
+            <div class="section-header text-center">
+                <h2 data-i18n="workflow.title">极简工作流</h2>
+                <p class="subtitle" data-i18n="workflow.subtitle">从照片到 3D 空间，只需三步</p>
+            </div>
+
+            <div class="workflow-steps fade-in-up delay-200">
+                <!-- Step 1 -->
+                <div class="workflow-step">
+                    <div class="step-icon">
+                        <i class="ri-image-add-line"></i>
+                        <div class="step-number">1</div>
+                    </div>
+                    <h3 data-i18n="workflow.step1.title">上传图片</h3>
+                    <p data-i18n="workflow.step1.desc">拖拽上传您的照片或视频素材，支持批量处理</p>
+                </div>
+
+
+
+                <!-- Step 2 -->
+                <div class="workflow-step">
+                    <div class="step-icon">
+                        <i class="ri-cpu-line"></i>
+                        <div class="pulse-ring"></div> <!-- 脉冲动画 -->
+                        <div class="step-number">2</div>
+                    </div>
+                    <h3 data-i18n="workflow.step2.title">本地生成</h3>
+                    <p data-i18n="workflow.step2.desc">基于 Ml-Sharp，本地生成，保护隐私</p>
+                </div>
+
+
+
+                <!-- Step 3 -->
+                <div class="workflow-step">
+                    <div class="step-icon">
+                        <i class="ri-box-3-line"></i>
+                        <div class="step-number">3</div>
+                    </div>
+                    <h3 data-i18n="workflow.step3.title">即刻漫游</h3>
+                    <p data-i18n="workflow.step3.desc">在任意设备上通过浏览器沉浸式预览</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- 新增：多端无界体验展示区 (重点突出) -->
+    <section class="platform-section">
+        <div class="container">
+            <div class="section-header text-center">
+                <div class="badge" data-i18n="platform.badge">🌐 无界互联</div>
+                <h2 data-i18n="platform.title">一次部署，全屋触手可及</h2>
+                <p class="subtitle" data-i18n="platform.subtitle">打破设备隔阂。在 PC
+                    运行服务，手机、平板通过局域网即可流畅访问。<br>响应式设计，为您呈现一致的优雅体验。</p>
+            </div>
+
+            <!-- 设备堆叠展示容器 -->
+            <div class="devices-showcase fade-in-up delay-200">
+
+                <!-- 电脑端 Wrapper -->
+                <div class="device-wrapper desktop">
+                    <div class="device-label glass">Desktop</div>
+                    <div class="device-content desktop-content glass">
+                        <div class="browser-bar">
+                            <div class="dots">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                            <div class="url-bar">localhost:5050</div>
+                        </div>
+                        <img src="./images/main.png" alt="Desktop View">
+                    </div>
+                </div>
+
+                <!-- 平板端 Wrapper -->
+                <div class="device-wrapper tablet">
+                    <div class="device-label glass">Tablet</div>
+                    <div class="device-content tablet-content glass">
+                        <div class="camera-dot"></div>
+                        <img src="./images/pad.png" alt="Tablet View" class="placeholder-img">
+                    </div>
+                </div>
+
+                <!-- VR Wrapper -->
+                <div class="device-wrapper vr">
+                    <div class="device-label glass">Vision / XR</div>
+                    <div class="device-content vr-content glass">
+                        <!-- 内部双目屏幕 -->
+                        <div class="vr-internal-screen">
+                            <div class="vr-eye left">
+                                <img src="./images/placeholder-vr-square.png" alt="VR Left">
+                            </div>
+                            <div class="vr-eye right">
+                                <img src="./images/placeholder-vr-square.png" alt="VR Right">
+                            </div>
+                        </div>
+                        <!-- 玻璃效果 -->
+                        <div class="vr-glass-front">
+                            <div class="vr-reflection"></div>
+                        </div>
+                        <!-- 顶部旋钮 -->
+                        <div class="vr-crown"></div>
+                    </div>
+                </div>
+
+                <!-- 手机端 Wrapper -->
+                <div class="device-wrapper mobile">
+                    <div class="device-label glass">Mobile</div>
+                    <div class="device-content mobile-content glass">
+                        <div class="notch"></div>
+                        <img src="./images/mobile.png" alt="Mobile View">
+                    </div>
+                </div>
+
+                <!-- 装饰性光晕 -->
+                <div class="device-glow"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 优化后的：特性 Bento Grid (对齐布局) -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="features.title">核心特性</h2>
+
+            <!-- 布局改为：上3 下2 -->
+            <div class="bento-grid-v2">
+
+                <!-- 第一行：三个基础特性 -->
+                <div class="bento-card glass reveal">
+                    <div class="card-icon-box blue">
+                        <i class="ri-apple-fill"></i>
+                    </div>
+                    <h3 data-i18n="features.apple.title">Apple 风格设计</h3>
+                    <p data-i18n="features.apple.desc">原生级毛玻璃效果、SF Pro 字体与丝滑的缓动动画。</p>
+                </div>
+
+                <div class="bento-card glass reveal premium-glow">
+                    <div class="card-icon-box purple"> <!-- 改为紫色或使用 CSS 覆盖 -->
+                        <i class="ri-shield-keyhole-line"></i> <!-- 换个更高级的图标 -->
+                    </div>
+                    <h3 data-i18n="features.privacy.title">隐私·无界</h3>
+                    <p data-i18n="features.privacy.desc">数据完全本地化，<span class="text-premium">无限制内容生成</span>，一切由你掌控。</p>
+                </div>
+
+                <div class="bento-card glass reveal">
+                    <div class="card-icon-box purple">
+                        <i class="ri-flashlight-fill"></i>
+                    </div>
+                    <h3 data-i18n="features.performance.title">高性能渲染</h3>
+                    <p data-i18n="features.performance.desc">基于 Three.js + Gaussian Splats，体积减少 43%，加载飞快。</p>
+                </div>
+
+                <!-- 第二行：两个宽卡片 -->
+                <div class="bento-card wide glass reveal">
+                    <div class="split-layout">
+                        <div class="text-content">
+                            <h3 data-i18n="features.control.title">全模态控制</h3>
+                            <p data-i18n="features.control.desc">不仅支持键盘 WASD 漫游，更支持移动端陀螺仪体感操控，身临其境。</p>
+                        </div>
+                        <div class="visual-content">
+                            <!-- 手机模型 (复用样式) -->
+                            <div class="device-content mobile-content">
+                                <!-- 无刘海 -->
+                                <img src="./images/demo-gyro.gif" alt="Gyro Control">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bento-card wide glass reveal">
+                    <div class="split-layout reverse"> <!-- reverse 让文字在右，图在左 -->
+                        <div class="text-content">
+                            <h3 data-i18n="features.joystick.title">移动端虚拟摇杆</h3>
+                            <p data-i18n="features.joystick.desc">触摸屏设备内置虚拟摇杆，实现如PC端键盘一样的漫游体验。</p>
+                        </div>
+                        <div class="visual-content">
+                            <!-- 平板模型 (复用样式) -->
+                            <div class="device-content tablet-content">
+                                <video src="./images/demo-joystick-2.mp4" autoplay loop muted playsinline
+                                    style="width: 100%; display: block; border-radius: inherit;"></video>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+    <section class="share-spotlight-section">
+        <div class="spotlight-bg"></div> <!-- 背景光效 -->
+
+        <div class="container">
+            <div class="spotlight-card glass">
+                <div class="spotlight-content">
+                    <div class="text-area">
+                        <div class="mini-tag"><i class="ri-share-forward-fill"></i> <span
+                                data-i18n="share.tag">社交裂变</span></div>
+                        <h2 data-i18n="share.title">一键导出，<br>让作品自由流动</h2>
+                        <p data-i18n="share.desc">告别繁琐的服务器部署。只需点击导出，即可生成一个独立的 HTML 文件。</p>
+
+                        <ul class="feature-list">
+                            <li>
+                                <span class="check-icon"><i class="ri-check-line"></i></span>
+                                <div>
+                                    <strong data-i18n="share.feature1.title">零依赖交付</strong>
+                                    <span class="desc" data-i18n="share.feature1.desc">模型数据与查看器打包为单文件</span>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="check-icon"><i class="ri-smartphone-line"></i></span>
+                                <div>
+                                    <strong data-i18n="share.feature2.title">全平台兼容</strong>
+                                    <span class="desc" data-i18n="share.feature2.desc">微信、AirDrop 直接发送，双击即看</span>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="check-icon"><i class="ri-folder-zip-line"></i></span>
+                                <div>
+                                    <strong data-i18n="share.feature3.title">极度轻量</strong>
+                                    <span class="desc" data-i18n="share.feature3.desc">自动压缩算法，由 GB 级瘦身至 MB 级</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="visual-area">
+                        <!-- 装饰元素：模拟文件图标 -->
+                        <div class="file-icon floating-slow">
+                            <i class="ri-file-code-line"></i>
+                            <span class="file-name">scene.html</span>
+                        </div>
+
+                        <!-- 你的展示大图/GIF -->
+                        <div class="main-visual-wrapper">
+                            <img src="./images/demo-share.gif" alt="Export and Share Demo">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- 功能演示画廊 -->
+    <section id="showcase" class="showcase-section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="showcase.title">功能演示</h2>
+            <div class="gallery-grid">
+                <div class="gallery-item glass reveal">
+                    <div class="video-wrapper">
+                        <img src="./images/demo-wasd.gif" alt="WASD Control">
+                    </div>
+                    <div class="caption">
+                        <h4 data-i18n="showcase.wasd.title">WASD 漫游</h4>
+                        <p data-i18n="showcase.wasd.desc">Shift 加速/微调，精准控制视角</p>
+                    </div>
+                </div>
+                <div class="gallery-item glass reveal">
+                    <div class="video-wrapper">
+                        <img src="./images/demo-upload.gif" alt="Batch Upload">
+                    </div>
+                    <div class="caption">
+                        <h4 data-i18n="showcase.upload.title">批量处理队列</h4>
+                        <p data-i18n="showcase.upload.desc">拖拽上传，并支持批量处理和任务中断</p>
+                    </div>
+                </div>
+                <div class="gallery-item glass reveal">
+                    <div class="video-wrapper">
+                        <img src="./images/demo-share.gif" alt="One-click Share">
+                    </div>
+                    <div class="caption">
+                        <h4 data-i18n="showcase.share.title">一键导出分享</h4>
+                        <p data-i18n="showcase.share.desc">生成独立 HTML，支持任何设备查看</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 技术架构 -->
+    <section id="architecture" class="architecture-section">
+        <div class="container">
+            <div class="section-header text-center">
+                <div class="badge" data-i18n="arch.badge">🏗️ 技术架构</div>
+                <h2 data-i18n="arch.title">简洁而强大</h2>
+                <p class="subtitle" data-i18n="arch.subtitle">现代化技术栈，为极致体验而生</p>
+            </div>
+
+            <div class="arch-diagram fade-in-up delay-200">
+                <!-- 架构流程图 -->
+                <div class="arch-flow">
+                    <!-- Frontend Layer -->
+                    <div class="arch-layer frontend">
+                        <div class="layer-header">
+                            <span class="layer-tag">Frontend</span>
+                        </div>
+                        <div class="arch-card glass reveal">
+                            <div class="tech-stack">
+                                <div class="tech-item">
+                                    <i class="ri-reactjs-line"></i>
+                                    <div class="tech-info">
+                                        <strong>React 19</strong>
+                                        <span>TypeScript + Vite</span>
+                                    </div>
+                                </div>
+                                <div class="tech-item">
+                                    <i class="ri-box-3-line"></i>
+                                    <div class="tech-info">
+                                        <strong>Three.js</strong>
+                                        <span>Gaussian Splats 3D</span>
+                                    </div>
+                                </div>
+                                <div class="tech-item">
+                                    <i class="ri-palette-line"></i>
+                                    <div class="tech-info">
+                                        <strong>Glass Morphism</strong>
+                                        <span>Apple Design</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 连接线动画 -->
+                    <div class="arch-connector">
+                        <div class="connector-line"></div>
+                        <div class="connector-flow"></div>
+                        <span class="connector-label">REST API</span>
+                    </div>
+
+                    <!-- Backend Layer -->
+                    <div class="arch-layer backend">
+                        <div class="layer-header">
+                            <span class="layer-tag">Backend</span>
+                        </div>
+                        <div class="arch-card glass reveal">
+                            <div class="tech-stack">
+                                <div class="tech-item">
+                                    <i class="ri-flask-line"></i>
+                                    <div class="tech-info">
+                                        <strong>Flask</strong>
+                                        <span>Python 3.10+</span>
+                                    </div>
+                                </div>
+                                <div class="tech-item">
+                                    <i class="ri-stack-line"></i>
+                                    <div class="tech-info">
+                                        <strong>Task Queue</strong>
+                                        <span data-i18n="arch.backend.queue">异步串行队列</span>
+                                    </div>
+                                </div>
+                                <div class="tech-item">
+                                    <i class="ri-lock-line"></i>
+                                    <div class="tech-info">
+                                        <strong>HTTPS</strong>
+                                        <span data-i18n="arch.backend.cert">自签名证书</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 连接线动画 -->
+                    <div class="arch-connector">
+                        <div class="connector-line"></div>
+                        <div class="connector-flow"></div>
+                        <span class="connector-label">subprocess</span>
+                    </div>
+
+                    <!-- AI Engine Layer -->
+                    <div class="arch-layer ai-engine">
+                        <div class="layer-header">
+                            <span class="layer-tag accent">AI Engine</span>
+                        </div>
+                        <div class="arch-card glass reveal premium-glow">
+                            <div class="tech-stack">
+                                <div class="tech-item highlight">
+                                    <i class="ri-apple-fill"></i>
+                                    <div class="tech-info">
+                                        <strong>SHARP</strong>
+                                        <span data-i18n="arch.ai.sharp">Apple 研究引擎</span>
+                                    </div>
+                                </div>
+                                <div class="tech-item">
+                                    <i class="ri-cpu-line"></i>
+                                    <div class="tech-info">
+                                        <strong>PyTorch</strong>
+                                        <span>CPU / MPS / CUDA</span>
+                                    </div>
+                                </div>
+                                <div class="tech-item">
+                                    <i class="ri-file-3-line"></i>
+                                    <div class="tech-info">
+                                        <strong>PLY Output</strong>
+                                        <span data-i18n="arch.ai.ply">3D Gaussian 格式</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能指标 -->
+                <div class="arch-metrics">
+                    <div class="metric-item glass">
+                        <span class="metric-value">43%</span>
+                        <span class="metric-label" data-i18n="arch.metric.compression">体积压缩</span>
+                    </div>
+                    <div class="metric-item glass">
+                        <span class="metric-value">&lt;1s</span>
+                        <span class="metric-label" data-i18n="arch.metric.inference">单图推理</span>
+                    </div>
+                    <div class="metric-item glass">
+                        <span class="metric-value">60fps</span>
+                        <span class="metric-label" data-i18n="arch.metric.render">流畅渲染</span>
+                    </div>
+                    <div class="metric-item glass">
+                        <span class="metric-value">WebXR</span>
+                        <span class="metric-label" data-i18n="arch.metric.vr">VR 支持</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 安装指南 -->
+    <section id="install" class="install-section">
+        <div class="container">
+            <div class="install-box glass reveal">
+                <h2 data-i18n="install.title">🚀 立即开始</h2>
+                <p data-i18n="install.subtitle">支持 macOS, Linux 和 Windows (WSL)</p>
+
+                <div class="code-tabs">
+                    <div class="tab active" data-i18n="install.tab">Release (推荐)</div>
+                </div>
+
+                <div class="code-block">
+                    <pre><code><span class="comment"># 1. 下载并解压最新 Release</span>
+unzip sharp-gui-v1.0.0.zip
+cd sharp-gui
+
+<span class="comment"># 2. 一键安装 (自动配置环境)</span>
+./install.sh  <span class="comment"># Linux/macOS</span>
+install.bat   <span class="comment"># Windows</span>
+
+<span class="comment"># 3. 启动服务</span>
+./run.sh</code></pre>
+                    <button class="copy-btn" onclick="copyCode()">
+                        <i class="ri-file-copy-line"></i>
+                    </button>
+                </div>
+
+                <div class="links">
+                    <a href="https://github.com/lueluelue12138/sharp-gui/releases" class="link-item">
+                        <span data-i18n="install.download">下载最新版本</span> <i class="ri-arrow-right-line"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer>
+        <div class="container">
+            <p><span data-i18n="footer.made">Made with ❤️ by</span> <a
+                    href="https://github.com/lueluelue12138">lueluelue12138</a></p>
+            <p class="disclaimer" data-i18n="footer.disclaimer">Disclaimer: 本项目生成的模型内容由用户自行负责。</p>
+            <div class="socials">
+                <a href="https://github.com/lueluelue12138/sharp-gui"><i class="ri-github-fill"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- i18n Script -->
+    <script src="i18n.js"></script>
+
+    <script>
+        // 简单的滚动显现动画脚本
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // 复制代码功能
+        function copyCode() {
+            const code = `unzip sharp-gui-v1.0.0.zip\ncd sharp-gui\n./install.sh\n./run.sh`;
+            navigator.clipboard.writeText(code);
+            alert(t('install.copy.alert'));
+        }
+
+        // ==========================================
+        // � 设备展示动画系统
+        // ==========================================
+        const heroFrame = document.querySelector('.window-frame');
+        const showcaseSection = document.querySelector('.devices-showcase');
+        const deviceGlow = document.querySelector('.device-glow');
+
+        // 缓存 DOM 元素
+        let desktop, tablet, mobile, vr;
+        if (showcaseSection) {
+            desktop = showcaseSection.querySelector('.device-wrapper.desktop');
+            tablet = showcaseSection.querySelector('.device-wrapper.tablet');
+            mobile = showcaseSection.querySelector('.device-wrapper.mobile');
+            vr = showcaseSection.querySelector('.device-wrapper.vr');
+        }
+
+        // 缓动函数 - 使用平滑的非线性曲线，无回弹
+        const easeOutQuint = (x) => 1 - Math.pow(1 - x, 5);
+        const easeOutSine = (x) => Math.sin((x * Math.PI) / 2);
+        const easeInOutCubic = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+
+        // 平滑插值 - 用于消除抖动
+        let lastProgress = 0;
+        const lerp = (start, end, factor) => start + (end - start) * factor;
+
+        // 🎯 核心动画函数
+        function updateDevicesAnimation() {
+            const isMobile = window.innerWidth <= 768;
+            if (!showcaseSection || isMobile || !desktop || !tablet || !mobile || !vr) return;
+
+            const rect = showcaseSection.getBoundingClientRect();
+            const viewHeight = window.innerHeight;
+
+            // 使用元素中心位置计算进度
+            const elementCenter = rect.top + rect.height / 2;
+            const startPoint = viewHeight * 1.1;   // 更早开始
+            const endPoint = viewHeight * 0.45;    // 更早结束
+
+            let targetProgress = (startPoint - elementCenter) / (startPoint - endPoint);
+            targetProgress = Math.max(0, Math.min(1, targetProgress));
+
+            // 平滑插值，消除抖动感
+            lastProgress = lerp(lastProgress, targetProgress, 0.15);
+            const progress = lastProgress;
+
+            // 使用平滑的 easeInOutCubic，让动画更优雅
+            const dProgress = easeInOutCubic(progress);
+            const tProgress = easeOutQuint(Math.max(0, (progress - 0.05) / 0.95));
+            const mProgress = easeOutQuint(Math.max(0, (progress - 0.08) / 0.92));
+            const vProgress = easeOutSine(Math.max(0, (progress - 0.12) / 0.88));
+
+            // ========== Desktop: 从下方升起 ==========
+            const dY = 50 * (1 - dProgress);
+            const dRotateX = 8 * (1 - dProgress);
+            const dScale = 0.95 + (0.05 * dProgress);
+            const dOpacity = 0.4 + (0.6 * dProgress);
+            desktop.style.transform = `translateX(-50%) translateY(${dY}px) rotateX(${dRotateX}deg) scale(${dScale})`;
+            desktop.style.opacity = dOpacity;
+
+            // ========== Tablet: 从左侧飞入 ==========
+            const tX = -280 * (1 - tProgress);
+            const tY = -80 * (1 - tProgress);
+            const tRotateZ = -8 * (1 - tProgress);
+            const tScale = 0.7 + (0.3 * tProgress);
+            const tOpacity = 0.2 + (0.8 * tProgress);
+            tablet.style.transform = `translateX(${tX}px) translateY(${tY}px) rotateZ(${tRotateZ}deg) scale(${tScale})`;
+            tablet.style.opacity = tOpacity;
+            tablet.style.filter = `blur(${4 * (1 - tProgress)}px)`;
+
+            // ========== Mobile: 从右侧飞入 ==========
+            const mX = 250 * (1 - mProgress);
+            const mY = -100 * (1 - mProgress);
+            const mRotateZ = 10 * (1 - mProgress);
+            const mScale = 0.6 + (0.4 * mProgress);
+            const mOpacity = 0.2 + (0.8 * mProgress);
+            mobile.style.transform = `translateX(${mX}px) translateY(${mY}px) rotateZ(${mRotateZ}deg) scale(${mScale})`;
+            mobile.style.opacity = mOpacity;
+            mobile.style.filter = `blur(${5 * (1 - mProgress)}px)`;
+
+            // ========== VR: 从下方升起 ==========
+            const vY = 180 * (1 - vProgress);
+            const vScale = 0.5 + (0.5 * vProgress);
+            const vOpacity = 0.2 + (0.8 * vProgress);
+            vr.style.transform = `translateY(${vY}px) scale(${vScale})`;
+            vr.style.opacity = vOpacity;
+            vr.style.filter = `blur(${6 * (1 - vProgress)}px)`;
+
+            // ========== 背景光晕 ==========
+            if (deviceGlow) {
+                const gScale = 0.4 + (0.6 * easeOutSine(progress));
+                const gOpacity = progress * 0.7;
+                deviceGlow.style.transform = `translate(-50%, -50%) scale(${gScale})`;
+                deviceGlow.style.opacity = gOpacity;
+            }
+
+            // 继续平滑更新（即使没有滚动）
+            if (Math.abs(targetProgress - lastProgress) > 0.001) {
+                requestAnimationFrame(updateDevicesAnimation);
+            }
+        }
+
+        // ==========================================
+        // 滚动事件处理
+        // ==========================================
+        window.addEventListener('scroll', () => {
+            const scrollY = window.scrollY;
+
+            // 1. Hero 区域视差
+            if (scrollY < 800 && heroFrame) {
+                let progress = Math.min(scrollY / 400, 1);
+                const rotateValue = 15 - (progress * 15);
+                const scaleValue = 1.0 + (progress * 0.05);
+                const translateY = scrollY * 0.1;
+                heroFrame.style.transform = `rotateX(${rotateValue}deg) scale(${scaleValue}) translateY(${translateY}px)`;
+
+                const shadowBlur = 50 - (progress * 20);
+                const shadowY = 25 - (progress * 10);
+                heroFrame.style.boxShadow = `0 ${shadowY}px ${shadowBlur}px -12px rgba(0,0,0,0.5)`;
+            }
+
+            // 2. 设备展示动画
+            updateDevicesAnimation();
+        });
+
+        // 🔥 关键：页面加载时立即执行一次，设置初始状态
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDevicesAnimation();
+        });
+        // 备用：如果 DOMContentLoaded 已经触发，立即执行
+        if (document.readyState !== 'loading') {
+            updateDevicesAnimation();
+        }
+    </script>
+</body>
+
+</html>

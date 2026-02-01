@@ -1,0 +1,341 @@
+/**
+ * Sharp GUI Homepage - Internationalization (i18n)
+ *
+ * Lightweight i18n system for Chinese/English support:
+ * - Auto-detects browser language
+ * - Persists preference to localStorage
+ * - Supports URL parameter override (?lang=en)
+ * - Real-time language switching without page reload
+ */
+
+const i18n = {
+  zh: {
+    // === Meta ===
+    "meta.title": "Sharp GUI - 本地化 3D 高斯溅射",
+    "meta.description":
+      "一个精美的 3D 高斯溅射 (Gaussian Splatting) 图形化界面,基于 Apple ml-sharp,本地部署,全屋访问。",
+
+    // === Navbar ===
+    "nav.features": "特性",
+    "nav.showcase": "演示",
+    "nav.architecture": "架构",
+    "nav.install": "安装",
+
+    // === Hero Section ===
+    "hero.badge": "✨ 本地化 3D Gaussian Splatting",
+    "hero.title": "你的空间记忆<br>触手可及",
+    "hero.subtitle":
+      "打破设备界限，一次部署，全屋访问。无需云端上传，在浏览器中即可生成并漫游令人惊叹的 3D 场景。",
+    "hero.cta.start": "快速开始",
+    "hero.cta.github": "Star on GitHub",
+
+    // === Workflow Section ===
+    "workflow.title": "极简工作流",
+    "workflow.subtitle": "从照片到 3D 空间，只需三步",
+    "workflow.step1.title": "上传图片",
+    "workflow.step1.desc": "拖拽上传您的照片或视频素材，支持批量处理",
+    "workflow.step2.title": "本地生成",
+    "workflow.step2.desc": "基于 Ml-Sharp，本地生成，保护隐私",
+    "workflow.step3.title": "即刻漫游",
+    "workflow.step3.desc": "在任意设备上通过浏览器沉浸式预览",
+
+    // === Platform Section ===
+    "platform.badge": "🌐 无界互联",
+    "platform.title": "一次部署，全屋触手可及",
+    "platform.subtitle":
+      "打破设备隔阂。在 PC 运行服务，手机、平板通过局域网即可流畅访问。<br>响应式设计，为您呈现一致的优雅体验。",
+
+    // === Features Section ===
+    "features.title": "核心特性",
+    "features.apple.title": "Apple 风格设计",
+    "features.apple.desc": "原生级毛玻璃效果、SF Pro 字体与丝滑的缓动动画。",
+    "features.privacy.title": "隐私·无界",
+    "features.privacy.desc":
+      '数据完全本地化，<span class="text-premium">无限制内容生成</span>，一切由你掌控。',
+    "features.performance.title": "高性能渲染",
+    "features.performance.desc":
+      "基于 Three.js + Gaussian Splats，体积减少 43%，加载飞快。",
+    "features.control.title": "全模态控制",
+    "features.control.desc":
+      "不仅支持键盘 WASD 漫游，更支持移动端陀螺仪体感操控，身临其境。",
+    "features.joystick.title": "移动端虚拟摇杆",
+    "features.joystick.desc":
+      "触摸屏设备内置虚拟摇杆，实现如PC端键盘一样的漫游体验。",
+
+    // === Share Section ===
+    "share.tag": "社交裂变",
+    "share.title": "一键导出，<br>让作品自由流动",
+    "share.desc":
+      "告别繁琐的服务器部署。只需点击导出，即可生成一个独立的 HTML 文件。",
+    "share.feature1.title": "零依赖交付",
+    "share.feature1.desc": "模型数据与查看器打包为单文件",
+    "share.feature2.title": "全平台兼容",
+    "share.feature2.desc": "微信、AirDrop 直接发送，双击即看",
+    "share.feature3.title": "极度轻量",
+    "share.feature3.desc": "自动压缩算法，由 GB 级瘦身至 MB 级",
+
+    // === Showcase Section ===
+    "showcase.title": "功能演示",
+    "showcase.wasd.title": "WASD 漫游",
+    "showcase.wasd.desc": "Shift 加速/微调，精准控制视角",
+    "showcase.upload.title": "批量处理队列",
+    "showcase.upload.desc": "拖拽上传，并支持批量处理和任务中断",
+    "showcase.share.title": "一键导出分享",
+    "showcase.share.desc": "生成独立 HTML，支持任何设备查看",
+
+    // === Architecture Section ===
+    "arch.badge": "🏗️ 技术架构",
+    "arch.title": "简洁而强大",
+    "arch.subtitle": "现代化技术栈，为极致体验而生",
+    "arch.backend.queue": "异步串行队列",
+    "arch.backend.cert": "自签名证书",
+    "arch.ai.sharp": "Apple 研究引擎",
+    "arch.ai.ply": "3D Gaussian 格式",
+    "arch.metric.compression": "体积压缩",
+    "arch.metric.inference": "单图推理",
+    "arch.metric.render": "流畅渲染",
+    "arch.metric.vr": "VR 支持",
+
+    // === Install Section ===
+    "install.title": "🚀 立即开始",
+    "install.subtitle": "支持 macOS, Linux 和 Windows (WSL)",
+    "install.tab": "Release (推荐)",
+    "install.download": "下载最新版本",
+    "install.copy.alert": "命令已复制到剪贴板！",
+
+    // === Footer ===
+    "footer.made": "Made with ❤️ by",
+    "footer.disclaimer": "Disclaimer: 本项目生成的模型内容由用户自行负责。",
+
+    // === Language Switcher ===
+    "lang.switch": "EN",
+  },
+
+  en: {
+    // === Meta ===
+    "meta.title": "Sharp GUI - Local 3D Gaussian Splatting",
+    "meta.description":
+      "A beautiful 3D Gaussian Splatting GUI based on Apple ml-sharp. Local deployment, access from anywhere.",
+
+    // === Navbar ===
+    "nav.features": "Features",
+    "nav.showcase": "Showcase",
+    "nav.architecture": "Architecture",
+    "nav.install": "Install",
+
+    // === Hero Section ===
+    "hero.badge": "✨ Local 3D Gaussian Splatting",
+    "hero.title": "Your Spatial Memories<br>At Your Fingertips",
+    "hero.subtitle":
+      "Break device barriers. Deploy once, access everywhere. Generate and explore stunning 3D scenes right in your browser—no cloud upload needed.",
+    "hero.cta.start": "Get Started",
+    "hero.cta.github": "Star on GitHub",
+
+    // === Workflow Section ===
+    "workflow.title": "Simple Workflow",
+    "workflow.subtitle": "From photos to 3D space in just 3 steps",
+    "workflow.step1.title": "Upload Images",
+    "workflow.step1.desc":
+      "Drag and drop your photos or videos, batch processing supported",
+    "workflow.step2.title": "Local Generation",
+    "workflow.step2.desc": "Powered by Ml-Sharp, fully local, privacy-first",
+    "workflow.step3.title": "Explore Now",
+    "workflow.step3.desc": "Immersive preview on any device via browser",
+
+    // === Platform Section ===
+    "platform.badge": "🌐 Seamless Access",
+    "platform.title": "Deploy Once, Access Everywhere",
+    "platform.subtitle":
+      "Break device barriers. Run the server on PC, access from phone or tablet via LAN.<br>Responsive design delivers a consistent elegant experience.",
+
+    // === Features Section ===
+    "features.title": "Core Features",
+    "features.apple.title": "Apple-Style Design",
+    "features.apple.desc":
+      "Native-level glassmorphism, SF Pro typography, and silky-smooth animations.",
+    "features.privacy.title": "Privacy · Unlimited",
+    "features.privacy.desc":
+      'Completely local data, <span class="text-premium">unrestricted content generation</span>, you\'re in control.',
+    "features.performance.title": "High Performance",
+    "features.performance.desc":
+      "Based on Three.js + Gaussian Splats, 43% size reduction, blazing fast.",
+    "features.control.title": "Multi-Modal Control",
+    "features.control.desc":
+      "Not just WASD keyboard navigation, but also mobile gyroscope for immersive control.",
+    "features.joystick.title": "Mobile Virtual Joystick",
+    "features.joystick.desc":
+      "Built-in virtual joystick for touch devices, PC-like navigation experience.",
+
+    // === Share Section ===
+    "share.tag": "Share Anywhere",
+    "share.title": "One-Click Export,<br>Let Your Work Flow",
+    "share.desc":
+      "Say goodbye to complex server deployments. Just click export to generate a standalone HTML file.",
+    "share.feature1.title": "Zero Dependencies",
+    "share.feature1.desc": "Model data and viewer bundled in a single file",
+    "share.feature2.title": "Cross-Platform",
+    "share.feature2.desc": "Send via WeChat, AirDrop—double-click to view",
+    "share.feature3.title": "Ultra Lightweight",
+    "share.feature3.desc": "Auto compression from GB to MB level",
+
+    // === Showcase Section ===
+    "showcase.title": "Feature Demos",
+    "showcase.wasd.title": "WASD Navigation",
+    "showcase.wasd.desc": "Shift to speed up/fine-tune, precise camera control",
+    "showcase.upload.title": "Batch Processing",
+    "showcase.upload.desc":
+      "Drag & drop upload, with task queue and cancellation",
+    "showcase.share.title": "One-Click Export",
+    "showcase.share.desc": "Generate standalone HTML, viewable on any device",
+
+    // === Architecture Section ===
+    "arch.badge": "🏗️ Architecture",
+    "arch.title": "Simple Yet Powerful",
+    "arch.subtitle": "Modern tech stack built for the ultimate experience",
+    "arch.backend.queue": "Async Serial Queue",
+    "arch.backend.cert": "Self-Signed Cert",
+    "arch.ai.sharp": "Apple Research Engine",
+    "arch.ai.ply": "3D Gaussian Format",
+    "arch.metric.compression": "Size Reduction",
+    "arch.metric.inference": "Single Image",
+    "arch.metric.render": "Smooth Render",
+    "arch.metric.vr": "VR Support",
+
+    // === Install Section ===
+    "install.title": "🚀 Get Started",
+    "install.subtitle": "Supports macOS, Linux, and Windows (WSL)",
+    "install.tab": "Release (Recommended)",
+    "install.download": "Download Latest",
+    "install.copy.alert": "Commands copied to clipboard!",
+
+    // === Footer ===
+    "footer.made": "Made with ❤️ by",
+    "footer.disclaimer":
+      "Disclaimer: Users are responsible for the content generated by this project.",
+
+    // === Language Switcher ===
+    "lang.switch": "中文",
+  },
+};
+
+// Current language
+let currentLang = "zh";
+
+/**
+ * Detect user's preferred language
+ * Priority: URL param > localStorage > navigator.language > default (zh)
+ */
+function detectLanguage() {
+  // 1. Check URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlLang = urlParams.get("lang");
+  if (urlLang && (urlLang === "en" || urlLang === "zh")) {
+    return urlLang;
+  }
+
+  // 2. Check localStorage
+  const storedLang = localStorage.getItem("sharp-gui-lang");
+  if (storedLang && (storedLang === "en" || storedLang === "zh")) {
+    return storedLang;
+  }
+
+  // 3. Check browser language
+  const browserLang = navigator.language || navigator.userLanguage;
+  if (browserLang) {
+    if (browserLang.startsWith("zh")) {
+      return "zh";
+    } else {
+      return "en";
+    }
+  }
+
+  // 4. Default to Chinese
+  return "zh";
+}
+
+/**
+ * Get translation by key
+ */
+function t(key) {
+  return i18n[currentLang][key] || i18n["zh"][key] || key;
+}
+
+/**
+ * Translate all elements with data-i18n attribute
+ */
+function translatePage() {
+  // Update <html lang>
+  document.documentElement.lang = currentLang === "zh" ? "zh-CN" : "en";
+
+  // Update page title
+  document.title = t("meta.title");
+
+  // Update meta description
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) {
+    metaDesc.content = t("meta.description");
+  }
+
+  // Translate all elements with data-i18n
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    const key = element.getAttribute("data-i18n");
+    const translation = t(key);
+
+    // Check if translation contains HTML
+    if (translation.includes("<br>") || translation.includes("<span")) {
+      element.innerHTML = translation;
+    } else {
+      element.textContent = translation;
+    }
+  });
+
+  // Translate placeholder attributes
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-placeholder");
+    element.placeholder = t(key);
+  });
+
+  // Translate aria-label attributes
+  document.querySelectorAll("[data-i18n-aria]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-aria");
+    element.setAttribute("aria-label", t(key));
+  });
+
+  // Update language switch button text
+  const langBtn = document.getElementById("lang-switch-btn");
+  if (langBtn) {
+    langBtn.textContent = t("lang.switch");
+  }
+}
+
+/**
+ * Set language and translate page
+ */
+function setLanguage(lang) {
+  if (lang !== "zh" && lang !== "en") {
+    lang = "zh";
+  }
+
+  currentLang = lang;
+  localStorage.setItem("sharp-gui-lang", lang);
+  translatePage();
+}
+
+/**
+ * Toggle between Chinese and English
+ */
+function toggleLanguage() {
+  const newLang = currentLang === "zh" ? "en" : "zh";
+  setLanguage(newLang);
+}
+
+// Initialize on page load
+document.addEventListener("DOMContentLoaded", () => {
+  currentLang = detectLanguage();
+  translatePage();
+});
+
+// Export for global access
+window.setLanguage = setLanguage;
+window.toggleLanguage = toggleLanguage;
+window.t = t;

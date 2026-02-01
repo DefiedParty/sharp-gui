@@ -22,6 +22,7 @@ As a Web enthusiast, I built Sharp GUI to bridge this gap. My goal is to let any
 
 ![Sharp GUI](https://img.shields.io/badge/Sharp-GUI-0071e3?style=for-the-badge&logo=apple&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black)
 ![Flask](https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge&logo=flask&logoColor=white)
 ![Three.js](https://img.shields.io/badge/Three.js-Viewer-000000?style=for-the-badge&logo=threedotjs&logoColor=white)
 
@@ -31,7 +32,7 @@ Built on [Apple ml-sharp](https://github.com/apple/ml-sharp). No cloud uploads n
 [Preview](#-preview) •
 [Quick Start](#-quick-start) •
 [Usage](#-usage) •
-[Architecture](#-architecture)
+[Architecture](#️-architecture)
 
 </div>
 
@@ -107,7 +108,7 @@ Built with Apple Human Interface Guidelines for a premium user experience:
 
 <p align="center">
   <img src="docs/images/mobile.png" height="400" alt="Mobile">&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/tablet.png" height="400" alt="Tablet">
+  <img src="docs/images/pad.png" height="400" alt="Tablet">
 </p>
 
 <p align="center">

@@ -49,3 +49,6 @@ Thumbs.db
 # Backup files
 *.bak
 *.zip
+
+# Agent
+.agent
