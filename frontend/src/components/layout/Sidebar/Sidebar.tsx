@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store';
 import { toggleLanguage } from '@/i18n';
 import { 
-  GalleryIcon, 
   PlusIcon, 
   SettingsIcon, 
   ChevronLeftIcon 
@@ -85,8 +84,21 @@ export function Sidebar({ onUpload, children }: SidebarProps) {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.title}>
-            <GalleryIcon width={20} height={20} />
-            <span>{t('appTitle')}</span>
+            <a 
+              href="https://lueluelue12138.github.io/sharp-gui/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'inherit' }}
+            >
+              <img 
+                src="/logo.png" 
+                alt="Sharp GUI Logo" 
+                width={30} 
+                height={30}
+                style={{ imageRendering: 'crisp-edges' }}
+              />
+              <span>{t('appTitle')}</span>
+            </a>
             
             {/* Settings button (local only) */}
             {isLocalAccess && (

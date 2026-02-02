@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -14,9 +14,95 @@
         box-sizing: border-box;
       }
 
+      /* --- 初始加载屏幕（纯 CSS，JS 加载前就显示）--- */
+      #boot-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.5s ease;
+      }
+
+      #boot-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .boot-content {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        padding: 40px;
+        border-radius: 24px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+      }
+
+      .boot-spinner {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 20px;
+        border: 3px solid rgba(0, 113, 227, 0.15);
+        border-radius: 50%;
+        border-top-color: #0071e3;
+        animation: boot-spin 1s ease-in-out infinite;
+      }
+
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .boot-text {
+        font-size: 15px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 8px;
+      }
+
+      .boot-subtext {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 16px;
+      }
+
+      .boot-notice {
+        font-size: 11px;
+        color: #aaa;
+        line-height: 1.5;
+        max-width: 280px;
+        margin: 0 auto;
+      }
+
+      .boot-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 24px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .boot-logo svg {
+        width: 24px;
+        height: 24px;
+        color: #0071e3;
+      }
+
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
         min-height: 100vh;
         overflow: hidden;
@@ -291,6 +377,121 @@
         opacity: 0;
         pointer-events: none;
       }
+
+      /* --- 虚拟摇杆 --- */
+      .virtual-joystick {
+        position: absolute;
+        bottom: 100px;
+        left: 60px;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: transparent;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        opacity: 0;
+        transform: scale(0.8);
+        transition:
+          opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+          transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        touch-action: none;
+        pointer-events: auto;
+      }
+
+      .virtual-joystick.visible {
+        display: flex;
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .virtual-joystick.active {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      }
+
+      .joystick-stick {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        position: absolute;
+        pointer-events: none;
+        transition: transform 0.05s ease-out;
+      }
+
+      /* --- 控制按钮 (Move) --- */
+      .ctrl-btn {
+        background: transparent;
+        color: #444;
+        border: none;
+        border-radius: 18px;
+        padding: 12px 20px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+      }
+
+      .ctrl-btn:hover {
+        background: rgba(255, 255, 255, 0.5);
+        color: black;
+      }
+
+      .ctrl-btn.active {
+        background: rgba(0, 113, 227, 0.1);
+        color: #0071e3;
+      }
+
+      .ctrl-btn svg {
+        width: 18px;
+        height: 18px;
+        color: #0071e3;
+      }
+
+      /* 仅触屏设备显示 Move 按钮 */
+      @media (pointer: coarse) {
+        #btn-joystick {
+          display: inline-flex;
+        }
+      }
+
+      /* --- 速度模式提示 --- */
+      .zoom-tooltip {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 100;
+        white-space: nowrap;
+      }
+
+      .zoom-tooltip.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
     </style>
 
     <!-- Import Map (使用内嵌 data URL) -->
@@ -305,6 +506,30 @@
   </head>
 
   <body>
+    <!-- 初始加载屏幕（纯 HTML+CSS，不依赖 JS） -->
+    <div id="boot-screen">
+      <div class="boot-content">
+        <div class="boot-logo">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
+          </svg>
+          Sharp 3D
+        </div>
+        <div class="boot-spinner"></div>
+        <div class="boot-text">正在初始化视图...</div>
+        <div class="boot-subtext">Initializing viewer engine</div>
+        <div class="boot-notice">
+          首次加载速度较慢，属于正常现象<br />
+          Initial loading might take a while, this is expected
+        </div>
+      </div>
+    </div>
+
     <div id="viewer-container"></div>
 
     <div class="top-bar">
@@ -398,6 +623,28 @@
         </div>
         <div><b>左键拖拽</b> - 旋转视角 | <b>右键拖拽</b> - 平移画面</div>
       </div>
+      <div class="help-item">
+        <div class="help-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 19V5m0 0l-4 4m4-4l4 4"
+            />
+          </svg>
+        </div>
+        <div><b>WASD/QE</b> - 键盘平移相机 (Shift加速/Alt精细)</div>
+      </div>
+      <div class="help-item">
+        <div class="help-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="8" stroke-width="2" fill="none" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+        </div>
+        <div><b>虚拟摇杆</b> - 触屏设备点击 Move 按钮启用</div>
+      </div>
       <div class="help-divider"></div>
 
       <div class="disclaimer">
@@ -405,12 +652,38 @@
         本 3D 模型由用户使用 AI
         工具生成，模型内容由用户自行负责，与本开源项目及其开发者无关。严禁将本工具用于生成或传播任何违法、侵权或不当内容。<br /><br />
         <strong>Powered by</strong>
-        <a href="https://github.com/lueluelue12138/sharp-gui" target="_blank"
+        <a
+          href="https://lueluelue12138.github.io/sharp-gui/"
+          target="_blank"
+          style="font-weight: 600; color: #0071e3"
           >Sharp GUI</a
         >
         · 开源项目
+        <span
+          style="
+            opacity: 0.7;
+            font-size: 11px;
+            margin-left: 4px;
+            vertical-align: baseline;
+          "
+        >
+          (<a
+            href="https://github.com/lueluelue12138/sharp-gui"
+            target="_blank"
+            style="color: #666; text-decoration: underline"
+            >GitHub</a
+          >)
+        </span>
       </div>
     </div>
+
+    <!-- 虚拟摇杆 -->
+    <div id="virtual-joystick" class="virtual-joystick">
+      <div id="joystick-stick" class="joystick-stick"></div>
+    </div>
+
+    <!-- 速度模式提示 -->
+    <div id="zoom-tooltip" class="zoom-tooltip"></div>
 
     <!-- 底部控制栏 -->
     <div class="bottom-bar">
@@ -425,14 +698,258 @@
         </svg>
         Reset
       </button>
+      <button class="ctrl-btn" id="btn-joystick" onclick="toggleJoystick()">
+        <svg
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <!-- 摇杆图标: 圆形底座 + 中心点 + 方向指示 -->
+          <circle cx="12" cy="12" r="9" stroke-width="2" fill="none" />
+          <circle cx="12" cy="12" r="3" />
+          <path stroke-width="2" d="M12 6v2M12 16v2M6 12h2M16 12h2" />
+        </svg>
+        Move
+      </button>
     </div>
 
     <script type="module">
       import * as GaussianSplats3D from "@mkkellogg/gaussian-splats-3d";
+      import * as THREE from "three";
 
       // 模型数据 (Base64)
       const MODEL_DATA = "{{MODEL_DATA}}";
       let viewer = null;
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 相机配置
+      // ═══════════════════════════════════════════════════════════════════════
+      const CAMERA_CONFIG = {
+        acceleratedMoveSpeed: 0.15, // Shift 加速
+        precisionMoveSpeed: 0.01, // Alt 精细
+        keyboardMoveSpeed: 0.05, // 默认速度
+      };
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 键盘控制
+      // ═══════════════════════════════════════════════════════════════════════
+      const keyState = {
+        w: false,
+        a: false,
+        s: false,
+        d: false,
+        q: false,
+        e: false,
+        shift: false,
+        ctrl: false,
+      };
+
+      let keyboardAnimationId = null;
+      const zoomTooltip = document.getElementById("zoom-tooltip");
+
+      function updateKeyboardMovement() {
+        if (!viewer) return;
+        const camera = viewer.camera;
+        const controls = viewer.cameraControls || viewer.controls;
+        if (!camera || !controls) return;
+
+        const hasMovement =
+          keyState.w ||
+          keyState.a ||
+          keyState.s ||
+          keyState.d ||
+          keyState.q ||
+          keyState.e;
+
+        if (hasMovement) {
+          let speed = CAMERA_CONFIG.keyboardMoveSpeed;
+          if (keyState.shift) speed = CAMERA_CONFIG.acceleratedMoveSpeed;
+          else if (keyState.ctrl) speed = CAMERA_CONFIG.precisionMoveSpeed;
+
+          const forward = new THREE.Vector3();
+          camera.getWorldDirection(forward);
+
+          const right = new THREE.Vector3();
+          right.crossVectors(forward, camera.up).normalize();
+
+          const up = new THREE.Vector3();
+          up.crossVectors(right, forward).normalize();
+
+          const delta = new THREE.Vector3();
+          if (keyState.w) delta.add(forward.clone().multiplyScalar(speed));
+          if (keyState.s) delta.add(forward.clone().multiplyScalar(-speed));
+          if (keyState.a) delta.add(right.clone().multiplyScalar(-speed));
+          if (keyState.d) delta.add(right.clone().multiplyScalar(speed));
+          if (keyState.q) delta.add(up.clone().multiplyScalar(-speed));
+          if (keyState.e) delta.add(up.clone().multiplyScalar(speed));
+
+          camera.position.add(delta);
+          if (controls.target) controls.target.add(delta);
+          if (controls.update) controls.update();
+
+          keyboardAnimationId = requestAnimationFrame(updateKeyboardMovement);
+        } else {
+          keyboardAnimationId = null;
+        }
+      }
+
+      window.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        if (["w", "a", "s", "d", "q", "e"].includes(key) && viewer) {
+          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
+            return;
+          e.preventDefault();
+          keyState[key] = true;
+          if (!keyboardAnimationId) {
+            keyboardAnimationId = requestAnimationFrame(updateKeyboardMovement);
+          }
+        }
+        if (e.key === "Shift" && viewer) {
+          keyState.shift = true;
+          zoomTooltip.textContent = "⚡ Fast Mode";
+          zoomTooltip.classList.add("show");
+        }
+        if (e.key === "Alt" && viewer) {
+          keyState.ctrl = true;
+          zoomTooltip.textContent = "🔍 Precision Mode";
+          zoomTooltip.classList.add("show");
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        const key = e.key.toLowerCase();
+        if (e.key === "Shift") {
+          keyState.shift = false;
+          if (!keyState.ctrl) zoomTooltip.classList.remove("show");
+        }
+        if (e.key === "Alt") {
+          keyState.ctrl = false;
+          if (!keyState.shift) zoomTooltip.classList.remove("show");
+        }
+        if (["w", "a", "s", "d", "q", "e"].includes(key)) {
+          keyState[key] = false;
+        }
+      });
+
+      window.addEventListener("blur", () => {
+        Object.keys(keyState).forEach((k) => (keyState[k] = false));
+        zoomTooltip.classList.remove("show");
+        if (keyboardAnimationId) {
+          cancelAnimationFrame(keyboardAnimationId);
+          keyboardAnimationId = null;
+        }
+      });
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 虚拟摇杆
+      // ═══════════════════════════════════════════════════════════════════════
+      const joystick = {
+        element: document.getElementById("virtual-joystick"),
+        stick: document.getElementById("joystick-stick"),
+        btn: document.getElementById("btn-joystick"),
+        isEnabled: false,
+        isActive: false,
+        animationId: null,
+        centerX: 0,
+        centerY: 0,
+        deltaX: 0,
+        deltaY: 0,
+        maxRadius: 35,
+        moveSpeed: 0.03,
+      };
+
+      window.toggleJoystick = function () {
+        joystick.isEnabled = !joystick.isEnabled;
+        joystick.element.classList.toggle("visible", joystick.isEnabled);
+        joystick.btn.classList.toggle("active", joystick.isEnabled);
+        if (!joystick.isEnabled) stopJoystickMovement();
+      };
+
+      function startJoystickMovement() {
+        if (joystick.animationId) return;
+        joystick.animationId = requestAnimationFrame(updateJoystickMovement);
+      }
+
+      function stopJoystickMovement() {
+        if (joystick.animationId) {
+          cancelAnimationFrame(joystick.animationId);
+          joystick.animationId = null;
+        }
+        joystick.deltaX = 0;
+        joystick.deltaY = 0;
+        joystick.stick.style.transform = "translate(0, 0)";
+        joystick.element.classList.remove("active");
+        joystick.isActive = false;
+      }
+
+      function updateJoystickMovement() {
+        if (!viewer || !joystick.isActive) {
+          joystick.animationId = null;
+          return;
+        }
+        const camera = viewer.camera;
+        const controls = viewer.cameraControls || viewer.controls;
+        if (!camera || !controls) return;
+
+        const nx = joystick.deltaX / joystick.maxRadius;
+        const ny = joystick.deltaY / joystick.maxRadius;
+
+        if (Math.abs(nx) > 0.1 || Math.abs(ny) > 0.1) {
+          const speed = joystick.moveSpeed;
+          const forward = new THREE.Vector3();
+          camera.getWorldDirection(forward);
+          const right = new THREE.Vector3();
+          right.crossVectors(forward, camera.up).normalize();
+
+          const delta = new THREE.Vector3();
+          delta.add(right.clone().multiplyScalar(nx * speed));
+          delta.add(forward.clone().multiplyScalar(-ny * speed));
+
+          camera.position.add(delta);
+          if (controls.target) controls.target.add(delta);
+          if (controls.update) controls.update();
+        }
+        joystick.animationId = requestAnimationFrame(updateJoystickMovement);
+      }
+
+      joystick.element.addEventListener(
+        "touchstart",
+        (e) => {
+          e.preventDefault();
+          const rect = joystick.element.getBoundingClientRect();
+          joystick.centerX = rect.left + rect.width / 2;
+          joystick.centerY = rect.top + rect.height / 2;
+          joystick.isActive = true;
+          joystick.element.classList.add("active");
+          startJoystickMovement();
+        },
+        { passive: false },
+      );
+
+      joystick.element.addEventListener(
+        "touchmove",
+        (e) => {
+          e.preventDefault();
+          if (!joystick.isActive) return;
+          const touch = e.touches[0];
+          let dx = touch.clientX - joystick.centerX;
+          let dy = touch.clientY - joystick.centerY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > joystick.maxRadius) {
+            dx = (dx / dist) * joystick.maxRadius;
+            dy = (dy / dist) * joystick.maxRadius;
+          }
+          joystick.deltaX = dx;
+          joystick.deltaY = dy;
+          joystick.stick.style.transform = `translate(${dx}px, ${dy}px)`;
+        },
+        { passive: false },
+      );
+
+      joystick.element.addEventListener("touchend", stopJoystickMovement);
+      joystick.element.addEventListener("touchcancel", stopJoystickMovement);
 
       // Base64 转 ArrayBuffer (带进度)
       function base64ToArrayBuffer(base64, onProgress) {
@@ -471,6 +988,13 @@
       async function init() {
         const container = document.getElementById("viewer-container");
         const loading = document.getElementById("loading");
+        const bootScreen = document.getElementById("boot-screen");
+
+        // 隐藏初始加载屏幕，显示模型加载界面
+        if (bootScreen) {
+          bootScreen.classList.add("hidden");
+          setTimeout(() => bootScreen.remove(), 500); // 动画结束后移除
+        }
 
         try {
           updateProgress(5, "Initializing viewer...");
@@ -545,46 +1069,42 @@
         const c = viewer.cameraControls || viewer.controls;
         if (!c) return;
 
-        // 需要 THREE 库
-        import("three").then((THREE) => {
-          // 1. 捕获当前状态
-          const startPos = new THREE.Vector3().copy(c.object.position);
-          const startTarget = new THREE.Vector3().copy(c.target);
+        // 1. 捕获当前状态
+        const startPos = new THREE.Vector3().copy(c.object.position);
+        const startTarget = new THREE.Vector3().copy(c.target);
 
-          // 2. 重置获取目标状态
-          c.reset();
-          const endPos = new THREE.Vector3().copy(c.object.position);
-          const endTarget = new THREE.Vector3().copy(c.target);
+        // 2. 重置获取目标状态
+        c.reset();
+        const endPos = new THREE.Vector3().copy(c.object.position);
+        const endTarget = new THREE.Vector3().copy(c.target);
 
-          // 3. 立即恢复当前状态
-          c.object.position.copy(startPos);
-          c.target.copy(startTarget);
+        // 3. 立即恢复当前状态
+        c.object.position.copy(startPos);
+        c.target.copy(startTarget);
+        c.update();
+
+        // 4. 动画过渡
+        const duration = 800;
+        const startTime = performance.now();
+
+        function animateReset(time) {
+          const elapsed = time - startTime;
+          const t = Math.min(elapsed / duration, 1);
+          const ease = 1 - Math.pow(1 - t, 3);
+
+          c.object.position.lerpVectors(startPos, endPos, ease);
+          c.target.lerpVectors(startTarget, endTarget, ease);
           c.update();
 
-          // 4. 动画过渡
-          const duration = 800;
-          const startTime = performance.now();
-
-          function animateReset(time) {
-            const elapsed = time - startTime;
-            const t = Math.min(elapsed / duration, 1);
-            // Ease out cubic
-            const ease = 1 - Math.pow(1 - t, 3);
-
-            c.object.position.lerpVectors(startPos, endPos, ease);
-            c.target.lerpVectors(startTarget, endTarget, ease);
+          if (t < 1) {
+            requestAnimationFrame(animateReset);
+          } else {
+            c.object.position.copy(endPos);
+            c.target.copy(endTarget);
             c.update();
-
-            if (t < 1) {
-              requestAnimationFrame(animateReset);
-            } else {
-              c.object.position.copy(endPos);
-              c.target.copy(endTarget);
-              c.update();
-            }
           }
-          requestAnimationFrame(animateReset);
-        });
+        }
+        requestAnimationFrame(animateReset);
       }
 
       // 绑定重置按钮
