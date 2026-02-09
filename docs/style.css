@@ -44,17 +44,18 @@ body {
     }
 }
 
-/* 动态背景 */
+/* 动态背景光晕系统 */
 .ambient-light {
     position: fixed;
     top: -20%;
     left: -10%;
-    width: 50vw;
-    height: 50vw;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-    filter: blur(80px);
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.05) 40%, rgba(0, 0, 0, 0) 70%);
+    filter: blur(100px);
     z-index: -1;
-    animation: float 10s infinite ease-in-out;
+    animation: floatPrimary 20s infinite ease-in-out;
+    will-change: transform;
 }
 
 .light-2 {
@@ -62,19 +63,68 @@ body {
     bottom: -20%;
     left: auto;
     right: -10%;
-    background: radial-gradient(circle, rgba(147, 51, 234, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-    animation: float 15s infinite ease-in-out reverse;
+    width: 55vw;
+    height: 55vw;
+    background: radial-gradient(circle, rgba(147, 51, 234, 0.12) 0%, rgba(147, 51, 234, 0.05) 40%, rgba(0, 0, 0, 0) 70%);
+    animation: floatSecondary 25s infinite ease-in-out;
 }
 
-@keyframes float {
+/* 第三层光晕 - 中心微光 */
+.light-3 {
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40vw;
+    height: 40vw;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, rgba(147, 51, 234, 0.04) 50%, transparent 70%);
+    animation: floatCenter 30s infinite ease-in-out;
+}
 
-    0%,
-    100% {
-        transform: translate(0, 0);
+/* 优雅的浮动动画 - 主光晕 */
+@keyframes floatPrimary {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
     }
-
+    25% {
+        transform: translate(5vw, 3vh) scale(1.05);
+        opacity: 0.9;
+    }
     50% {
-        transform: translate(30px, 50px);
+        transform: translate(3vw, 6vh) scale(1);
+        opacity: 1;
+    }
+    75% {
+        transform: translate(-2vw, 2vh) scale(0.95);
+        opacity: 0.85;
+    }
+}
+
+/* 优雅的浮动动画 - 副光晕 */
+@keyframes floatSecondary {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    33% {
+        transform: translate(-4vw, -5vh) scale(1.1);
+        opacity: 0.85;
+    }
+    66% {
+        transform: translate(3vw, -2vh) scale(0.95);
+        opacity: 0.95;
+    }
+}
+
+/* 优雅的浮动动画 - 中心光晕 */
+@keyframes floatCenter {
+    0%, 100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translateX(-50%) scale(1.15);
+        opacity: 0.4;
     }
 }
 
@@ -247,6 +297,73 @@ h1 {
     background: rgba(255, 255, 255, 0.1);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* GitHub Stars Badge */
+.stars-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    padding: 2px 8px;
+    margin-left: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.stars-badge:empty {
+    display: none;
+}
+
+/* GitHub Star Button - Premium Style */
+.btn-github-star {
+    gap: 10px;
+    padding-left: 14px;
+    padding-right: 24px;
+}
+
+.btn-github-star .star-count-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px 4px 8px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+}
+
+.btn-github-star:hover .star-count-wrapper {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-github-star .star-icon {
+    color: #fbbf24;
+    font-size: 1rem;
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.4));
+    transition: all 0.3s ease;
+}
+
+.btn-github-star:hover .star-icon {
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6));
+    transform: scale(1.1);
+}
+
+.btn-github-star .stars-count {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    min-width: 12px;
+}
+
+.btn-github-star .stars-count:empty {
+    display: none;
+}
+
+/* 当没有 stars 数据时，调整 wrapper 样式 */
+.btn-github-star .star-count-wrapper:has(.stars-count:empty) {
+    padding: 4px 8px;
 }
 
 /* 窗口截图外框 */
@@ -521,6 +638,65 @@ h1 {
 .link-item {
     color: var(--accent);
     font-weight: 600;
+}
+
+/* Install Actions */
+.install-actions {
+    margin-top: 30px;
+}
+
+.btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, var(--accent) 0%, #3b82f6 100%);
+    color: white;
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px -8px rgba(37, 99, 235, 0.5);
+    transition: all 0.3s ease;
+}
+
+.btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -8px rgba(37, 99, 235, 0.6);
+}
+
+.btn-download i {
+    font-size: 1.1rem;
+}
+
+/* Install Tip - Blue Theme */
+.install-tip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    padding: 14px 18px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: left;
+}
+
+.install-tip i {
+    color: #60a5fa;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.install-tip code {
+    background: rgba(59, 130, 246, 0.15);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Courier New', monospace;
+    font-size: 0.85em;
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 /* 页脚 */

@@ -101,6 +101,9 @@ const i18n = {
     "install.subtitle": "支持 macOS, Linux 和 Windows (WSL)",
     "install.tab": "Release (推荐)",
     "install.download": "下载最新版本",
+    "install.tip.prefix": "想要第一时间获取最新功能？使用 ",
+    "install.tip.middle": " 克隆仓库，之后运行 ",
+    "install.tip.suffix": " 即可同步最新代码。",
     "install.copy.alert": "命令已复制到剪贴板！",
 
     // === Footer ===
@@ -206,6 +209,9 @@ const i18n = {
     "install.subtitle": "Supports macOS, Linux, and Windows (WSL)",
     "install.tab": "Release (Recommended)",
     "install.download": "Download Latest",
+    "install.tip.prefix": "Want the latest features? Use ",
+    "install.tip.middle": " to clone, then run ",
+    "install.tip.suffix": " to sync the latest code.",
     "install.copy.alert": "Commands copied to clipboard!",
 
     // === Footer ===

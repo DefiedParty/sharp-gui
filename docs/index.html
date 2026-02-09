@@ -25,9 +25,10 @@
 
 <body>
 
-    <!-- 动态背景 -->
+    <!-- 动态背景光晕 -->
     <div class="ambient-light"></div>
     <div class="ambient-light light-2"></div>
+    <div class="ambient-light light-3"></div>
 
     <!-- 导航栏 -->
     <nav class="navbar glass">
@@ -61,8 +62,12 @@
                     <a href="#install" class="btn btn-primary">
                         <i class="ri-rocket-line"></i> <span data-i18n="hero.cta.start">快速开始</span>
                     </a>
-                    <a href="https://github.com/lueluelue12138/sharp-gui" target="_blank" class="btn btn-secondary">
-                        <i class="ri-star-line"></i> <span data-i18n="hero.cta.github">Star on GitHub</span>
+                    <a href="https://github.com/lueluelue12138/sharp-gui" target="_blank" class="btn btn-secondary btn-github-star">
+                        <span class="star-count-wrapper">
+                            <i class="ri-star-fill star-icon"></i>
+                            <span id="github-stars" class="stars-count"></span>
+                        </span>
+                        <span data-i18n="hero.cta.github">Star on GitHub</span>
                     </a>
                 </div>
             </div>
@@ -492,7 +497,7 @@
                         <span class="metric-label" data-i18n="arch.metric.compression">体积压缩</span>
                     </div>
                     <div class="metric-item glass">
-                        <span class="metric-value">&lt;1s</span>
+                        <span class="metric-value">&lt;20s</span>
                         <span class="metric-label" data-i18n="arch.metric.inference">单图推理</span>
                     </div>
                     <div class="metric-item glass">
@@ -535,10 +540,22 @@ install.bat   <span class="comment"># Windows</span>
                     </button>
                 </div>
 
-                <div class="links">
-                    <a href="https://github.com/lueluelue12138/sharp-gui/releases" class="link-item">
-                        <span data-i18n="install.download">下载最新版本</span> <i class="ri-arrow-right-line"></i>
+                <div class="install-actions">
+                    <a href="https://github.com/lueluelue12138/sharp-gui/releases" target="_blank" class="btn btn-download">
+                        <i class="ri-download-2-line"></i>
+                        <span data-i18n="install.download">下载最新版本</span>
                     </a>
+                </div>
+
+                <div class="install-tip">
+                    <i class="ri-lightbulb-line"></i>
+                    <span>
+                        <span data-i18n="install.tip.prefix">想要第一时间获取最新功能？使用</span>
+                        <code>git clone</code>
+                        <span data-i18n="install.tip.middle"> 克隆仓库，之后运行 </span>
+                        <code>git pull</code>
+                        <span data-i18n="install.tip.suffix"> 即可同步最新代码。</span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -580,27 +597,101 @@ install.bat   <span class="comment"># Windows</span>
         // 复制代码功能
         let latestVersion = 'latest'; // 默认值
 
-        // 动态获取最新版本号
-        async function fetchLatestVersion() {
-            try {
-                const response = await fetch('https://api.github.com/repos/lueluelue12138/sharp-gui/releases/latest');
-                if (response.ok) {
-                    const data = await response.json();
-                    latestVersion = data.tag_name; // 例如 "v1.0.0"
+        // ==========================================
+        // 📦 GitHub 数据获取系统 (统一缓存)
+        // ==========================================
+        const GITHUB_CACHE_KEY = 'sharp-gui-github-cache';
+        const CACHE_DURATION = 30 * 60 * 1000; // 30分钟缓存
 
-                    // 更新页面中的版本号占位符
-                    const placeholder = document.getElementById('version-placeholder-1');
-                    if (placeholder) {
-                        placeholder.textContent = latestVersion;
+        // 从缓存获取数据
+        function getGitHubCache() {
+            try {
+                const cached = localStorage.getItem(GITHUB_CACHE_KEY);
+                if (cached) {
+                    const data = JSON.parse(cached);
+                    if (Date.now() - data.timestamp < CACHE_DURATION) {
+                        return data;
                     }
                 }
-            } catch (error) {
-                console.warn('Failed to fetch latest version:', error);
+            } catch (e) { }
+            return null;
+        }
+
+        // 保存到缓存
+        function setGitHubCache(data) {
+            try {
+                localStorage.setItem(GITHUB_CACHE_KEY, JSON.stringify({
+                    ...data,
+                    timestamp: Date.now()
+                }));
+            } catch (e) { }
+        }
+
+        // 更新页面显示
+        function updateGitHubDisplay(data) {
+            // 更新版本号
+            if (data.version) {
+                latestVersion = data.version;
+                const placeholder = document.getElementById('version-placeholder-1');
+                if (placeholder) {
+                    placeholder.textContent = data.version;
+                }
+            }
+
+            // 更新 Stars 数量
+            if (data.stars && data.stars > 0) {
+                const starsElement = document.getElementById('github-stars');
+                if (starsElement) {
+                    const formatted = data.stars >= 1000 
+                        ? (data.stars / 1000).toFixed(1) + 'k' 
+                        : data.stars;
+                    starsElement.textContent = formatted;
+                }
             }
         }
 
-        // 页面加载时获取版本号
-        fetchLatestVersion();
+        // 获取 GitHub 数据 (stars + version)
+        async function fetchGitHubData() {
+            // 1. 先尝试使用缓存
+            const cached = getGitHubCache();
+            if (cached) {
+                updateGitHubDisplay(cached);
+                return;
+            }
+
+            // 2. 并行获取 stars 和 version
+            const data = { stars: null, version: null };
+            
+            try {
+                const [repoRes, releaseRes] = await Promise.allSettled([
+                    fetch('https://api.github.com/repos/lueluelue12138/sharp-gui'),
+                    fetch('https://api.github.com/repos/lueluelue12138/sharp-gui/releases/latest')
+                ]);
+
+                // 处理 stars
+                if (repoRes.status === 'fulfilled' && repoRes.value.ok) {
+                    const repoData = await repoRes.value.json();
+                    data.stars = repoData.stargazers_count;
+                }
+
+                // 处理 version
+                if (releaseRes.status === 'fulfilled' && releaseRes.value.ok) {
+                    const releaseData = await releaseRes.value.json();
+                    data.version = releaseData.tag_name;
+                }
+
+                // 缓存并显示
+                if (data.stars || data.version) {
+                    setGitHubCache(data);
+                    updateGitHubDisplay(data);
+                }
+            } catch (error) {
+                console.warn('Failed to fetch GitHub data:', error);
+            }
+        }
+
+        // 页面加载时获取 GitHub 数据
+        fetchGitHubData();
 
         function copyCode() {
             const code = `unzip sharp-gui-${latestVersion}.zip\ncd sharp-gui\n./install.sh\n./run.sh`;
