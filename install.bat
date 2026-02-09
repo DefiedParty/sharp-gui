@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 REM ============================================================
 REM Sharp GUI - Windows 一键安装脚本
 REM 自动拉取 Apple ml-sharp 并部署 GUI
