@@ -1,3 +1,7 @@
+import ssl
+# Disable SSL verification for networks with SSL proxy (corporate/school networks)
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import os
 import subprocess
 import json
@@ -298,6 +302,8 @@ def worker():
                         task_status[task_id]['status'] = 'failed'
                         task_status[task_id]['error'] = stderr_output if stderr_output else "Unknown error"
                 print(f"❌ Task {task_id} failed with return code {return_code}")
+                if stderr_output:
+                    print(f"   Error output:\n{stderr_output}")
 
         except Exception as e:
             with task_lock:

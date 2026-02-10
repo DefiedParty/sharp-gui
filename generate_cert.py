@@ -84,16 +84,28 @@ def supports_addext(version):
 
 def generate_with_addext(openssl_path):
     """使用 -addext 选项生成证书 (OpenSSL 1.1.1+)"""
-    cmd = [
-        openssl_path, 'req', '-x509', '-newkey', 'rsa:4096',
-        '-keyout', KEY_FILE,
-        '-out', CERT_FILE,
-        '-days', '365',
-        '-nodes',
-        '-subj', '/CN=Sharp3D-Local/O=Sharp3D/C=CN',
-        '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1,IP:0.0.0.0'
-    ]
-    return subprocess.run(cmd, capture_output=True, text=True)
+    # 创建最小配置文件，避免依赖系统 openssl.cnf (Windows 上常找不到)
+    minimal_cnf = "[req]\ndistinguished_name = req_dn\nprompt = no\n\n[req_dn]\nCN = Sharp3D-Local\n"
+    fd, cnf_file = tempfile.mkstemp(suffix='.cnf')
+    try:
+        with os.fdopen(fd, 'w') as f:
+            f.write(minimal_cnf)
+        cmd = [
+            openssl_path, 'req', '-x509', '-newkey', 'rsa:4096',
+            '-keyout', KEY_FILE,
+            '-out', CERT_FILE,
+            '-days', '365',
+            '-nodes',
+            '-config', cnf_file,
+            '-subj', '/CN=Sharp3D-Local/O=Sharp3D/C=CN',
+            '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1,IP:0.0.0.0'
+        ]
+        return subprocess.run(cmd, capture_output=True, text=True)
+    finally:
+        try:
+            os.unlink(cnf_file)
+        except:
+            pass
 
 
 def generate_with_extfile(openssl_path):

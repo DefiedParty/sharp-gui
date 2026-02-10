@@ -550,7 +550,7 @@ echo [6/6] 安装 Python 依赖...
 
 call "%VENV_DIR%\Scripts\activate.bat"
 
-pip install --upgrade pip
+python -m pip install --upgrade pip
 
 echo 安装 Sharp 核心 (这可能需要几分钟)...
 cd /d "%SCRIPT_DIR%%SHARP_DIR%"

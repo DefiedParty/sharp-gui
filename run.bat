@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul 2>&1
 REM ============================================================
-REM Sharp GUI - 一键启动脚本 (Windows)
+REM Sharp GUI - Launcher Script (Windows)
 REM 
-REM 用法: run.bat [--legacy]
-REM   --legacy  使用原始单文件版本
+REM Usage: run.bat [--legacy]
+REM   --legacy  Use legacy single-file frontend
 REM ============================================================
 
 setlocal enabledelayedexpansion
@@ -12,11 +12,11 @@ setlocal enabledelayedexpansion
 set SCRIPT_DIR=%~dp0
 cd /d "%SCRIPT_DIR%"
 
-REM 默认使用 React 版本
+REM Default to React frontend
 set USE_LEGACY=false
 set SHARP_FRONTEND_MODE=react
 
-REM 解析参数
+REM Parse arguments
 if "%1"=="--legacy" (
     set USE_LEGACY=true
     set SHARP_FRONTEND_MODE=legacy
@@ -34,52 +34,56 @@ echo   -h, --help  显示帮助信息
 exit /b 0
 
 :main
-REM 检查虚拟环境
-if not exist "%SCRIPT_DIR%venv" (
-    echo ================================================================
-    echo   错误: 虚拟环境不存在 (Virtual environment not found)
-    echo ================================================================
-    echo.
-    echo   请先运行安装脚本:
-    echo     install.bat
-    echo.
-    echo ================================================================
-    pause
-    exit /b 1
-)
+REM Check virtual environment
+if exist "%SCRIPT_DIR%venv" goto :venv_ok
+echo ================================================================
+echo   错误: 虚拟环境不存在
+echo   Virtual environment not found
+echo ================================================================
+echo.
+echo   请先运行安装脚本:
+echo     install.bat
+echo.
+echo ================================================================
+pause
+exit /b 1
 
-REM 检查 ml-sharp
-if not exist "%SCRIPT_DIR%ml-sharp" (
-    echo ================================================================
-    echo   错误: ml-sharp 未安装 (ml-sharp not installed)
-    echo ================================================================
-    echo.
-    echo   请先运行安装脚本:
-    echo     install.bat
-    echo.
-    echo ================================================================
-    pause
-    exit /b 1
-)
+:venv_ok
+REM Check ml-sharp
+if exist "%SCRIPT_DIR%ml-sharp" goto :sharp_ok
+echo ================================================================
+echo   错误: ml-sharp 未安装
+echo   ml-sharp not installed
+echo ================================================================
+echo.
+echo   请先运行安装脚本:
+echo     install.bat
+echo.
+echo ================================================================
+pause
+exit /b 1
 
-REM 激活虚拟环境
+:sharp_ok
+REM Activate virtual environment
 call "%SCRIPT_DIR%venv\Scripts\activate.bat"
 
-REM 检查 sharp 命令
+REM Check sharp command
 where sharp >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo ================================================================
-    echo   错误: Sharp 未正确安装 (Sharp not properly installed)
-    echo ================================================================
-    echo.
-    echo   请重新安装:
-    echo     rmdir /s /q venv
-    echo     install.bat
-    echo.
-    echo ================================================================
-    pause
-    exit /b 1
-)
+if !ERRORLEVEL! equ 0 goto :sharp_cmd_ok
+echo ================================================================
+echo   错误: Sharp 未正确安装
+echo   Sharp not properly installed
+echo ================================================================
+echo.
+echo   请重新安装:
+echo     rmdir /s /q venv
+echo     install.bat
+echo.
+echo ================================================================
+pause
+exit /b 1
+
+:sharp_cmd_ok
 
 echo.
 echo ========================================
@@ -87,11 +91,11 @@ echo   Sharp GUI 启动中...
 echo ========================================
 echo.
 
-REM 获取本机局域网 IP
+REM Get LAN IP
 for /f "delims=" %%i in ('python -c "import socket; ips=list(set(ip[4][0] for ip in socket.getaddrinfo(socket.gethostname(),None,socket.AF_INET))); result=next((ip for ip in ips if ip.startswith('192.168.') or ip.startswith('10.') or (ip.startswith('172.') and 16<=int(ip.split('.')[1])<=31 and not ip.startswith('172.17.'))),None); print(result or next((ip for ip in ips if not ip.startswith('127.')),'127.0.0.1'))" 2^>nul') do set LOCAL_IP=%%i
 if not defined LOCAL_IP set LOCAL_IP=127.0.0.1
 
-REM 检查 HTTPS 证书状态
+REM Check HTTPS certificate
 if exist "%SCRIPT_DIR%cert.pem" if exist "%SCRIPT_DIR%key.pem" (
     set PROTOCOL=https
     echo [HTTPS] 完整功能支持
@@ -108,10 +112,10 @@ echo.
 echo 按 Ctrl+C 停止服务器
 echo.
 
-REM 传递 LAN IP 给 Flask
+REM Pass LAN IP to Flask
 set SHARP_LAN_IP=%LOCAL_IP%
 
-REM 设置前端模式
+REM Set frontend mode
 if "%USE_LEGACY%"=="true" (
     echo [Legacy 模式] 单文件版本
 ) else (
@@ -125,6 +129,8 @@ if "%USE_LEGACY%"=="true" (
 )
 echo.
 
+REM Skip SSL verification for networks with SSL proxy
+set PYTHONHTTPSVERIFY=0
 python app.py
 
 pause
