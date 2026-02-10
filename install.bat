@@ -3,6 +3,11 @@ chcp 65001 >nul 2>&1
 REM ============================================================
 REM Sharp GUI - Windows 一键安装脚本
 REM 自动拉取 Apple ml-sharp 并部署 GUI
+REM
+REM 依赖自动安装策略 (三层 fallback):
+REM   1. winget install (Win10/11 自带包管理器)
+REM   2. PowerShell 下载安装包 + 静默安装 (国内镜像优先)
+REM   3. 显示手动安装指引
 REM ============================================================
 
 setlocal enabledelayedexpansion
@@ -18,29 +23,152 @@ set SHARP_REPO=https://github.com/apple/ml-sharp.git
 set SHARP_DIR=ml-sharp
 set SCRIPT_DIR=%~dp0
 
-REM 检测 Python
+REM --- 版本配置 (更新依赖版本时只需修改这里) ---
+set PYTHON_INSTALL_VERSION=3.12.8
+set GIT_INSTALL_VERSION=2.47.1
+
+REM ============================================================
+REM  辅助函数: 刷新当前会话的 PATH (从注册表读取最新值)
+REM  安装软件后无需重启终端
+REM ============================================================
+:refresh_path
+    set "SYS_PATH="
+    set "USR_PATH="
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do set "SYS_PATH=%%b"
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USR_PATH=%%b"
+    if defined SYS_PATH if defined USR_PATH (
+        set "PATH=!SYS_PATH!;!USR_PATH!"
+    ) else if defined SYS_PATH (
+        set "PATH=!SYS_PATH!"
+    )
+    goto :eof
+
+REM ============================================================
+REM  辅助函数: 通过 PowerShell 下载文件
+REM  参数: %1=URL %2=保存路径
+REM ============================================================
+:download_file
+    echo 正在下载: %~1
+    echo 保存到:   %~2
+    powershell -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '%~1' -OutFile '%~2' -UseBasicParsing; exit 0 } catch { Write-Host \"下载失败: $_\"; exit 1 }"
+    goto :eof
+
+REM ============================================================
+REM  检测 winget 是否可用
+REM ============================================================
+set HAS_WINGET=false
+where winget >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    set HAS_WINGET=true
+)
+
+REM ============================================================
+REM  [1/8] 检测 Python
+REM ============================================================
 echo [1/8] 检查 Python 环境...
 
 where python >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [错误] 未找到 Python！
+    echo [警告] 未找到 Python！
     echo.
+
+    REM --- 第一层: 尝试 winget ---
+    if "!HAS_WINGET!"=="true" (
+        echo ================================================================
+        echo   可以自动安装 Python %PYTHON_INSTALL_VERSION% (通过 winget)
+        echo ================================================================
+        echo.
+        set /p INSTALL_PYTHON="是否自动安装? [Y/n] "
+        if /i "!INSTALL_PYTHON!"=="n" (
+            goto :ps_python
+        )
+
+        echo.
+        echo 正在通过 winget 安装 Python...
+        echo (如果弹出 UAC 权限确认，请点击"是")
+        echo.
+        winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements
+        if !ERRORLEVEL! equ 0 (
+            echo.
+            echo [OK] Python 安装完成，正在刷新环境变量...
+            call :refresh_path
+            where python >nul 2>&1
+            if !ERRORLEVEL! equ 0 (
+                echo [OK] Python 已就绪！
+                goto :python_found
+            )
+        )
+        echo [警告] winget 安装未成功，尝试备用方案...
+        echo.
+    )
+
+    REM --- 第二层: PowerShell 下载安装包 ---
+    :ps_python
     echo ================================================================
-    echo          请安装 Python 3.10+ (Install Python)
+    echo   尝试自动下载并安装 Python %PYTHON_INSTALL_VERSION%
+    echo   (使用国内镜像加速)
     echo ================================================================
     echo.
-    echo   1. 从官网下载: https://www.python.org/downloads/
+    set /p PS_INSTALL_PYTHON="是否自动下载安装 Python? [Y/n] "
+    if /i "!PS_INSTALL_PYTHON!"=="n" (
+        goto :manual_python
+    )
+
+    set "PYTHON_INSTALLER=%TEMP%\python-installer.exe"
+
+    REM 优先使用国内镜像 (npmmirror)
     echo.
-    echo   2. 安装时务必勾选 "Add Python to PATH"！
-    echo      (IMPORTANT: Check "Add Python to PATH")
+    echo [1/2] 正在下载 Python 安装包 (国内镜像)...
+    call :download_file "https://registry.npmmirror.com/-/binary/python/%PYTHON_INSTALL_VERSION%/python-%PYTHON_INSTALL_VERSION%-amd64.exe" "!PYTHON_INSTALLER!"
+    if !ERRORLEVEL! neq 0 (
+        echo [警告] 国内镜像下载失败，尝试官方源...
+        call :download_file "https://www.python.org/ftp/python/%PYTHON_INSTALL_VERSION%/python-%PYTHON_INSTALL_VERSION%-amd64.exe" "!PYTHON_INSTALLER!"
+        if !ERRORLEVEL! neq 0 (
+            echo [错误] 下载失败，请手动安装
+            goto :manual_python
+        )
+    )
+
     echo.
-    echo   3. 安装完成后，关闭此窗口并重新运行 install.bat
+    echo [2/2] 正在安装 Python (静默模式)...
+    echo (如果弹出 UAC 权限确认，请点击"是")
+    "!PYTHON_INSTALLER!" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1 Include_venv=1
+    if !ERRORLEVEL! neq 0 (
+        echo [警告] 静默安装失败，尝试交互式安装...
+        echo 请在弹出的安装界面中勾选 "Add Python to PATH"！
+        "!PYTHON_INSTALLER!"
+    )
+
+    REM 清理安装包
+    del "!PYTHON_INSTALLER!" 2>nul
+
     echo.
-    echo ================================================================
-    pause
-    exit /b 1
+    echo 正在刷新环境变量...
+    call :refresh_path
+
+    REM Python 默认安装路径可能不在刷新后的 PATH 中，主动尝试
+    if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" (
+        set "PATH=!PATH!;%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts"
+    )
+    if exist "C:\Python312\python.exe" (
+        set "PATH=!PATH!;C:\Python312;C:\Python312\Scripts"
+    )
+    if exist "%ProgramFiles%\Python312\python.exe" (
+        set "PATH=!PATH!;%ProgramFiles%\Python312;%ProgramFiles%\Python312\Scripts"
+    )
+
+    where python >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        echo [错误] 安装完成但仍然检测不到 Python
+        echo         请关闭此窗口，重新打开命令提示符再运行 install.bat
+        pause
+        exit /b 1
+    )
+    echo [OK] Python 安装成功！
+    goto :python_found
 )
 
+:python_found
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
 echo [OK] 找到 Python: %PYTHON_VERSION%
 
@@ -69,16 +197,146 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM 检测 Git
+goto :check_git
+
+REM --- 第三层: 手动安装 Python 的提示 ---
+:manual_python
+    echo.
+    echo ================================================================
+    echo          请手动安装 Python 3.10+ (Install Python)
+    echo ================================================================
+    echo.
+    echo   1. 从官网下载: https://www.python.org/downloads/
+    echo.
+    echo   2. 安装时务必勾选 "Add Python to PATH"！
+    echo      (IMPORTANT: Check "Add Python to PATH")
+    echo.
+    echo   3. 安装完成后，关闭此窗口并重新运行 install.bat
+    echo.
+    echo ================================================================
+    pause
+    exit /b 1
+
+REM ============================================================
+REM  [2/8] 检测 Git
+REM ============================================================
+:check_git
 echo.
 echo [2/8] 检查 Git...
 
 where git >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [错误] 未找到 Git！
+    echo [警告] 未找到 Git！
+    echo.
+
+    REM --- 第一层: 尝试 winget ---
+    if "!HAS_WINGET!"=="true" (
+        echo ================================================================
+        echo   可以自动安装 Git (通过 winget)
+        echo ================================================================
+        echo.
+        set /p INSTALL_GIT="是否自动安装? [Y/n] "
+        if /i "!INSTALL_GIT!"=="n" (
+            goto :ps_git
+        )
+
+        echo.
+        echo 正在通过 winget 安装 Git...
+        echo (如果弹出 UAC 权限确认，请点击"是")
+        echo.
+        winget install Git.Git --accept-source-agreements --accept-package-agreements
+        if !ERRORLEVEL! equ 0 (
+            echo.
+            echo [OK] Git 安装完成，正在刷新环境变量...
+            call :refresh_path
+            if exist "C:\Program Files\Git\cmd" (
+                set "PATH=!PATH!;C:\Program Files\Git\cmd"
+            )
+            where git >nul 2>&1
+            if !ERRORLEVEL! equ 0 (
+                echo [OK] Git 已就绪！
+                goto :git_found
+            )
+        )
+        echo [警告] winget 安装未成功，尝试备用方案...
+        echo.
+    )
+
+    REM --- 第二层: PowerShell 下载安装包 ---
+    :ps_git
+    echo ================================================================
+    echo   尝试自动下载并安装 Git %GIT_INSTALL_VERSION%
+    echo   (使用国内镜像加速)
+    echo ================================================================
+    echo.
+    set /p PS_INSTALL_GIT="是否自动下载安装 Git? [Y/n] "
+    if /i "!PS_INSTALL_GIT!"=="n" (
+        goto :manual_git
+    )
+
+    set "GIT_INSTALLER=%TEMP%\git-installer.exe"
+
+    REM 优先使用国内镜像 (npmmirror)
+    echo.
+    echo [1/2] 正在下载 Git 安装包 (国内镜像)...
+    call :download_file "https://registry.npmmirror.com/-/binary/git-for-windows/v%GIT_INSTALL_VERSION%.windows.1/Git-%GIT_INSTALL_VERSION%-64-bit.exe" "!GIT_INSTALLER!"
+    if !ERRORLEVEL! neq 0 (
+        echo [警告] 国内镜像下载失败，尝试官方源...
+        call :download_file "https://github.com/git-for-windows/git/releases/download/v%GIT_INSTALL_VERSION%.windows.1/Git-%GIT_INSTALL_VERSION%-64-bit.exe" "!GIT_INSTALLER!"
+        if !ERRORLEVEL! neq 0 (
+            echo [错误] 下载失败，请手动安装
+            goto :manual_git
+        )
+    )
+
+    echo.
+    echo [2/2] 正在安装 Git (静默模式)...
+    echo (如果弹出 UAC 权限确认，请点击"是")
+    "!GIT_INSTALLER!" /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh"
+    if !ERRORLEVEL! neq 0 (
+        echo [警告] 静默安装失败，尝试交互式安装...
+        echo 请在弹出的安装界面中使用默认设置即可
+        "!GIT_INSTALLER!"
+    )
+
+    REM 清理安装包
+    del "!GIT_INSTALLER!" 2>nul
+
+    echo.
+    echo 正在刷新环境变量...
+    call :refresh_path
+
+    REM Git 默认安装路径
+    if exist "C:\Program Files\Git\cmd" (
+        set "PATH=!PATH!;C:\Program Files\Git\cmd"
+    )
+
+    where git >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        echo [错误] 安装完成但仍然检测不到 Git
+        echo         请关闭此窗口，重新打开命令提示符再运行 install.bat
+        pause
+        exit /b 1
+    )
+    echo [OK] Git 安装成功！
+    goto :git_found
+)
+
+:git_found
+echo [OK] Git 已安装
+
+REM 补充 Git for Windows 自带的工具路径 (OpenSSL 等)
+if exist "C:\Program Files\Git\usr\bin" (
+    set "PATH=!PATH!;C:\Program Files\Git\usr\bin"
+)
+
+goto :check_cuda
+
+REM --- 第三层: 手动安装 Git 的提示 ---
+:manual_git
     echo.
     echo ================================================================
-    echo            请安装 Git (Install Git)
+    echo            请手动安装 Git (Install Git)
     echo ================================================================
     echo.
     echo   从官网下载: https://git-scm.com/download/win
@@ -88,10 +346,11 @@ if %ERRORLEVEL% neq 0 (
     echo ================================================================
     pause
     exit /b 1
-)
-echo [OK] Git 已安装
 
-REM 检查 CUDA
+REM ============================================================
+REM  [3/8] 检查 CUDA
+REM ============================================================
+:check_cuda
 echo.
 echo [3/8] 检查 CUDA 环境...
 
@@ -112,7 +371,9 @@ if %ERRORLEVEL% equ 0 (
     set HAS_CUDA=false
 )
 
-REM 检测 Node.js
+REM ============================================================
+REM  [4/8] 检测 Node.js
+REM ============================================================
 echo.
 echo [4/8] 检查 Node.js 环境...
 
@@ -130,7 +391,9 @@ if %ERRORLEVEL% equ 0 (
     set HAS_NODE=false
 )
 
-REM 拉取/更新 ml-sharp
+REM ============================================================
+REM  [5/8] 拉取/更新 ml-sharp
+REM ============================================================
 echo.
 echo [5/8] 获取 Apple ml-sharp...
 
@@ -149,7 +412,9 @@ if exist "%SCRIPT_DIR%%SHARP_DIR%" (
     echo [OK] ml-sharp 克隆完成
 )
 
-REM 创建虚拟环境
+REM ============================================================
+REM  [6/8] 创建虚拟环境
+REM ============================================================
 echo.
 echo [6/8] 创建虚拟环境...
 
@@ -170,7 +435,9 @@ python -m venv "%VENV_DIR%"
 echo [OK] 虚拟环境创建完成
 
 :install_deps
-REM 安装依赖
+REM ============================================================
+REM  [7/8] 安装依赖
+REM ============================================================
 echo.
 echo [7/8] 安装 Python 依赖...
 
@@ -188,7 +455,9 @@ pip install flask
 
 echo [OK] Python 依赖安装完成
 
-REM 安装前端依赖
+REM ============================================================
+REM  [8/8] 安装前端依赖
+REM ============================================================
 if "%HAS_NODE%"=="true" (
     echo.
     echo [8/8] 安装前端依赖...
@@ -208,7 +477,9 @@ REM 创建目录
 if not exist "%SCRIPT_DIR%inputs" mkdir "%SCRIPT_DIR%inputs"
 if not exist "%SCRIPT_DIR%outputs" mkdir "%SCRIPT_DIR%outputs"
 
-REM 生成 HTTPS 证书 (可选)
+REM ============================================================
+REM  生成 HTTPS 证书 (可选)
+REM ============================================================
 echo.
 echo 生成 HTTPS 证书 (可选)...
 
@@ -225,15 +496,15 @@ if %ERRORLEVEL% equ 0 (
 ) else (
     echo [警告] 未找到 OpenSSL，跳过证书生成
     echo.
-    echo   OpenSSL 随 Git for Windows 一起安装。
-    echo   如已安装 Git，可尝试从 Git Bash 运行此脚本。
-    echo.
-    echo   或单独安装 OpenSSL: https://slproweb.com/products/Win32OpenSSL.html
+    echo   提示: Git for Windows 自带 OpenSSL
+    echo   如已安装 Git，请关闭此窗口重新运行 install.bat
     echo.
     echo   HTTPS 不可用，陀螺仪功能仅限本机访问
 )
 
-REM 测试安装
+REM ============================================================
+REM  测试安装
+REM ============================================================
 echo.
 echo 测试安装...
 
@@ -250,7 +521,9 @@ python -c "import flask; print(f'Flask: {flask.__version__}')"
 
 echo [OK] 安装测试通过
 
-REM 完成
+REM ============================================================
+REM  完成
+REM ============================================================
 echo.
 echo ============================================
 echo   Sharp GUI 安装完成!
