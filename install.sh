@@ -156,42 +156,6 @@ check_cuda() {
     fi
 }
 
-# 检测 Node.js (用于 React 前端)
-check_node() {
-    print_step "检查 Node.js 环境..."
-    
-    if command -v node &> /dev/null; then
-        NODE_VERSION=$(node --version)
-        NODE_MAJOR=$(echo $NODE_VERSION | sed 's/v//' | cut -d. -f1)
-        
-        if [ "$NODE_MAJOR" -ge 18 ]; then
-            print_success "找到 Node.js: $NODE_VERSION"
-            HAS_NODE=true
-        else
-            print_warning "找到 Node.js $NODE_VERSION，但推荐 18+"
-            HAS_NODE=true
-        fi
-    else
-        print_warning "未找到 Node.js，跳过前端安装"
-        echo ""
-        echo "  如需使用 React 版本，请安装 Node.js 18+:"
-        if [ "$OS" == "macos" ]; then
-            echo "    brew install node"
-        else
-            echo "    # Ubuntu/Debian:"
-            echo "    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -"
-            echo "    sudo apt install nodejs"
-            echo ""
-            echo "    # 或使用 nvm (推荐):"
-            echo "    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash"
-            echo "    nvm install 20"
-        fi
-        echo ""
-        echo "  注意：预构建包已包含编译好的前端，无需安装 Node.js"
-        HAS_NODE=false
-    fi
-}
-
 # 拉取/更新 ml-sharp
 clone_or_update_sharp() {
     print_step "获取 Apple ml-sharp..."
@@ -267,25 +231,6 @@ setup_gui() {
     mkdir -p "$SCRIPT_DIR/outputs"
     
     print_success "GUI 配置完成"
-}
-
-# 安装前端依赖 (可选)
-install_frontend() {
-    if [ "$HAS_NODE" != "true" ]; then
-        print_warning "跳过前端安装 (Node.js 不可用)"
-        return
-    fi
-    
-    if [ ! -d "$SCRIPT_DIR/frontend" ]; then
-        print_warning "跳过前端安装 (frontend 目录不存在)"
-        return
-    fi
-    
-    print_step "安装前端依赖..."
-    cd "$SCRIPT_DIR/frontend"
-    npm install
-    cd "$SCRIPT_DIR"
-    print_success "前端依赖安装完成"
 }
 
 # 生成 HTTPS 证书
@@ -383,12 +328,10 @@ main() {
     check_python
     check_git
     check_cuda
-    check_node
     clone_or_update_sharp
     create_venv
     install_dependencies
     setup_gui
-    install_frontend
     generate_https_cert
     test_installation
     show_completion
