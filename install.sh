@@ -209,11 +209,66 @@ install_dependencies() {
     # 升级 pip
     pip install --upgrade pip
     
+    # --- 检测并安装正确版本的 PyTorch ---
+    # Linux 上 PyPI 的 torch 默认包含 CUDA 支持，但有时可能安装了 CPU 版
+    CUDA_INDEX_URL=""
+    if [ "$OS" == "linux" ] && command -v nvidia-smi &> /dev/null; then
+        print_step "检测到 NVIDIA GPU，检查 PyTorch CUDA 支持..."
+        
+        if python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+            print_success "PyTorch 已支持 CUDA，无需重装"
+        else
+            print_warning "当前 PyTorch 不支持 CUDA，将自动选择合适的 CUDA 版本"
+            
+            # 从 nvidia-smi 获取驱动支持的 CUDA 版本
+            DRIVER_CUDA_VER=$(nvidia-smi 2>/dev/null | grep -oP "CUDA Version: \K[0-9.]+" || echo "")
+            
+            if [ -n "$DRIVER_CUDA_VER" ]; then
+                CUDA_MAJOR=$(echo "$DRIVER_CUDA_VER" | cut -d. -f1)
+                echo "驱动支持的 CUDA 版本: $DRIVER_CUDA_VER"
+                
+                if [ "$CUDA_MAJOR" -ge 12 ] 2>/dev/null; then
+                    CUDA_INDEX_URL="https://download.pytorch.org/whl/cu124"
+                    echo "选择 PyTorch CUDA 12.4 版本"
+                elif [ "$CUDA_MAJOR" -ge 11 ] 2>/dev/null; then
+                    CUDA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+                    echo "选择 PyTorch CUDA 11.8 版本"
+                else
+                    print_warning "CUDA 版本过低 ($DRIVER_CUDA_VER)，将使用 CPU 模式"
+                fi
+            else
+                # 无法检测版本，使用兼容性最好的 CUDA 11.8
+                CUDA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+                echo "无法检测 CUDA 版本，使用兼容性最广的 CUDA 11.8"
+            fi
+            
+            if [ -n "$CUDA_INDEX_URL" ]; then
+                echo "下载源: $CUDA_INDEX_URL"
+                if pip install torch torchvision --index-url "$CUDA_INDEX_URL" --force-reinstall; then
+                    print_success "CUDA 版 PyTorch 安装完成！"
+                else
+                    print_warning "CUDA 版 PyTorch 安装失败，将使用 CPU 版本"
+                    echo "  推理仍可工作，但速度较慢"
+                fi
+            fi
+        fi
+    fi
+    
     # 安装 ml-sharp
     print_step "安装 Sharp 核心 (这可能需要几分钟)..."
     cd "$SCRIPT_DIR/$SHARP_DIR"
     pip install -r requirements.txt
     cd "$SCRIPT_DIR"
+    
+    # --- 保护: 确保 CUDA torch 没有被 requirements.txt 覆盖 ---
+    if [ "$OS" == "linux" ] && [ -n "$CUDA_INDEX_URL" ]; then
+        if ! python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+            print_warning "CUDA PyTorch 被 requirements.txt 覆盖，正在重新安装..."
+            if pip install torch torchvision --index-url "$CUDA_INDEX_URL" --force-reinstall; then
+                print_success "CUDA 版 PyTorch 重新安装完成"
+            fi
+        fi
+    fi
     
     # 安装 GUI 依赖
     print_step "安装 GUI 依赖..."
@@ -231,6 +286,21 @@ setup_gui() {
     mkdir -p "$SCRIPT_DIR/outputs"
     
     print_success "GUI 配置完成"
+}
+
+# 下载模型
+download_model() {
+    print_step "下载推理模型..."
+    
+    VENV_DIR="$SCRIPT_DIR/venv"
+    source "$VENV_DIR/bin/activate"
+    
+    if python "$SCRIPT_DIR/download_model.py"; then
+        print_success "模型准备完成"
+    else
+        print_warning "模型下载失败，首次推理时会重试下载"
+        echo "  也可稍后手动下载 (见下方提示)"
+    fi
 }
 
 # 生成 HTTPS 证书
@@ -286,6 +356,9 @@ test_installation() {
         exit 1
     }
     
+    # 显示 GPU 状态
+    python -c "import torch; cuda=torch.cuda.is_available(); mps=hasattr(torch.backends,'mps') and torch.backends.mps.is_available(); device='CUDA (NVIDIA GPU)' if cuda else ('MPS (Apple GPU)' if mps else 'CPU'); print(f'推理设备: {device}')"
+    
     print_success "安装测试通过"
 }
 
@@ -310,8 +383,14 @@ show_completion() {
         echo "     sharp predict -i input.jpg -o outputs/ --render"
         echo ""
     fi
-    echo "首次运行会自动下载模型 (~500MB)"
-    echo "First run will download model automatically."
+    echo -e "${YELLOW}提示: 如果推理时提示模型缺失或下载失败，可手动下载:${NC}"
+    echo ""
+    echo "  下载地址 (任选其一):"
+    echo "    HuggingFace: https://huggingface.co/apple/Sharp/resolve/main/sharp_2572gikvuh.pt"
+    echo "    HF镜像(国内): https://hf-mirror.com/apple/Sharp/resolve/main/sharp_2572gikvuh.pt"
+    echo ""
+    echo "  下载后放到:"
+    python -c "import os; print(f'    {os.path.expanduser(\"~/.cache/torch/hub/checkpoints/sharp_2572gikvuh.pt\")}')"
     echo ""
 }
 
@@ -332,6 +411,7 @@ main() {
     create_venv
     install_dependencies
     setup_gui
+    download_model
     generate_https_cert
     test_installation
     show_completion

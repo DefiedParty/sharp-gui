@@ -42,7 +42,7 @@ jobs:
           mkdir -p release-build
 
           # 复制核心文件
-          cp app.py generate_cert.py release-build/
+          cp app.py generate_cert.py download_model.py release-build/
           cp install.sh install.bat run.sh run.bat build.sh build.bat release-build/
           cp README.md README.en.md LICENSE release-build/ 2>/dev/null || true
 
@@ -67,6 +67,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: sharp-gui-*.zip
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           body: |
             ## 📦 快速使用 (Quick Start)

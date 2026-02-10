@@ -552,6 +552,74 @@ call "%VENV_DIR%\Scripts\activate.bat"
 
 python -m pip install --upgrade pip
 
+REM --- 检测并安装正确版本的 PyTorch ---
+REM Windows 上 PyPI 默认安装 CPU 版 PyTorch
+REM 如果有 NVIDIA GPU，需要先安装 CUDA 版
+set NEED_CUDA_TORCH=false
+set CUDA_INDEX_URL=
+
+where nvidia-smi >nul 2>&1
+if !ERRORLEVEL! equ 0 (
+    echo.
+    echo [GPU] 检测到 NVIDIA GPU，检查 PyTorch CUDA 支持...
+
+    REM 检查当前 PyTorch 是否已支持 CUDA
+    python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>nul
+    if !ERRORLEVEL! neq 0 (
+        set NEED_CUDA_TORCH=true
+        echo [GPU] 当前 PyTorch 不支持 CUDA，将自动选择合适的 CUDA 版本
+
+        REM 从 nvidia-smi 获取驱动支持的 CUDA 版本
+        REM 使用 Python 解析更可靠，避免 batch 解析管道符等特殊字符出错
+        set DRIVER_CUDA_VER=
+        for /f "tokens=*" %%v in ('python -c "import subprocess,re; o=subprocess.check_output(['nvidia-smi'],text=True,stderr=subprocess.DEVNULL); m=re.search(r'CUDA Version:\s*([\d.]+)',o); print(m.group(1) if m else '')" 2^>nul') do (
+            if not "%%v"=="" set DRIVER_CUDA_VER=%%v
+        )
+    ) else (
+        echo [GPU] PyTorch 已支持 CUDA，无需重装
+    )
+)
+
+REM 根据检测结果选择 CUDA 版本 (放在括号外避免嵌套延迟展开问题)
+if "!NEED_CUDA_TORCH!"=="true" (
+    if defined DRIVER_CUDA_VER (
+        echo [GPU] 驱动支持的 CUDA 版本: !DRIVER_CUDA_VER!
+
+        REM 提取主版本号
+        for /f "tokens=1 delims=." %%m in ("!DRIVER_CUDA_VER!") do set CUDA_MAJOR=%%m
+
+        if !CUDA_MAJOR! geq 12 (
+            set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu124
+            echo [GPU] 选择 PyTorch CUDA 12.4 版本
+        ) else if !CUDA_MAJOR! geq 11 (
+            set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu118
+            echo [GPU] 选择 PyTorch CUDA 11.8 版本
+        ) else (
+            echo [警告] CUDA 版本过低 ^(!DRIVER_CUDA_VER!^)，将使用 CPU 模式
+            set NEED_CUDA_TORCH=false
+        )
+    ) else (
+        REM 无法检测版本，使用兼容性最好的 CUDA 11.8
+        set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu118
+        echo [GPU] 无法检测 CUDA 版本，使用兼容性最广的 CUDA 11.8
+    )
+)
+
+if "!NEED_CUDA_TORCH!"=="true" (
+    echo.
+    echo 正在安装 CUDA 版 PyTorch (这可能需要几分钟)...
+    echo 下载源: !CUDA_INDEX_URL!
+    pip install torch torchvision --index-url !CUDA_INDEX_URL! --force-reinstall
+    if !ERRORLEVEL! neq 0 (
+        echo.
+        echo [警告] CUDA 版 PyTorch 安装失败，将使用 CPU 版本
+        echo         推理仍可工作，但速度较慢
+        echo.
+    ) else (
+        echo [OK] CUDA 版 PyTorch 安装完成！
+    )
+)
+
 echo 安装 Sharp 核心 (这可能需要几分钟)...
 cd /d "%SCRIPT_DIR%%SHARP_DIR%"
 pip install -r requirements.txt
@@ -567,6 +635,19 @@ if !ERRORLEVEL! neq 0 (
 )
 cd /d "%SCRIPT_DIR%"
 
+REM --- 保护: 确保 CUDA torch 没有被 requirements.txt 覆盖 ---
+if "!NEED_CUDA_TORCH!"=="true" (
+    python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>nul
+    if !ERRORLEVEL! neq 0 (
+        echo.
+        echo [GPU] CUDA PyTorch 被 requirements.txt 覆盖，正在重新安装...
+        pip install torch torchvision --index-url !CUDA_INDEX_URL! --force-reinstall
+        if !ERRORLEVEL! equ 0 (
+            echo [OK] CUDA 版 PyTorch 重新安装完成
+        )
+    )
+)
+
 echo 安装 GUI 依赖...
 pip install flask
 
@@ -574,6 +655,19 @@ echo [OK] Python 依赖安装完成
 
 if not exist "%SCRIPT_DIR%inputs" mkdir "%SCRIPT_DIR%inputs"
 if not exist "%SCRIPT_DIR%outputs" mkdir "%SCRIPT_DIR%outputs"
+
+REM ============================================================
+REM  Download model
+REM ============================================================
+echo.
+echo 下载推理模型...
+
+python "%SCRIPT_DIR%download_model.py"
+if !ERRORLEVEL! neq 0 (
+    echo.
+    echo [警告] 模型下载失败，首次推理时会重试下载
+    echo         也可稍后手动下载 (见下方提示)
+)
 
 REM ============================================================
 REM  Generate HTTPS certificate (optional)
@@ -611,6 +705,9 @@ echo [OK] Sharp CLI 可用
 python -c "import torch; print(f'PyTorch: {torch.__version__}')"
 python -c "import flask; print(f'Flask: {flask.__version__}')"
 
+REM 显示 GPU 状态
+python -c "import torch; cuda=torch.cuda.is_available(); mps=hasattr(torch.backends,'mps') and torch.backends.mps.is_available(); device='CUDA (NVIDIA GPU)' if cuda else ('MPS (Apple GPU)' if mps else 'CPU'); print(f'推理设备: {device}')"
+
 echo [OK] 安装测试通过
 
 REM ============================================================
@@ -628,7 +725,14 @@ echo.
 echo   2. 命令行: venv\Scripts\activate.bat
 echo      sharp predict -i input.jpg -o outputs\
 echo.
-echo 首次运行会自动下载模型 (~500MB)
+echo [提示] 如果推理时提示模型缺失或下载失败，可手动下载:
+echo.
+echo   下载地址 (任选其一):
+echo     HuggingFace: https://huggingface.co/apple/Sharp/resolve/main/sharp_2572gikvuh.pt
+echo     HF镜像(国内): https://hf-mirror.com/apple/Sharp/resolve/main/sharp_2572gikvuh.pt
+echo.
+echo   下载后放到:
+python -c "import os; p=os.path.join(os.path.expanduser('~'),'.cache','torch','hub','checkpoints','sharp_2572gikvuh.pt'); print('    '+p)"
 echo.
 
 pause
