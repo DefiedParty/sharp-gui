@@ -59,7 +59,9 @@ No need to install apps on every device. Run Sharp GUI on one computer, and any 
 | **📱 Mobile Optimized**  | Perfect adaptation for phones/tablets with gyroscope support                                      |
 | **🥽 VR Preview**        | WebXR VR mode support, immersive experience on Quest/Vision Pro with controller joystick movement |
 | **📤 One-Click Share**   | Export as standalone HTML, viewable without server                                                |
-| **🚀 One-Click Deploy**  | Auto-configures Python env, downloads deps, generates HTTPS certs                                 |
+| **🎮 GPU Acceleration** | Auto-detect NVIDIA GPU, smart CUDA version selection (cu118/cu124) for faster inference           |
+| **🔄 Auto-Update**       | One-click update to latest version, supports pre-release channel                                  |
+| **🚀 One-Click Deploy**  | Auto-configures Python/Git env, downloads deps, pre-downloads model, generates HTTPS certs        |
 
 ### 🎨 Apple-Style UI Design
 
@@ -182,15 +184,17 @@ Built with Apple Human Interface Guidelines for a premium user experience:
 
 ### System Requirements
 
-| Platform                  | Inference     | Video Rendering | Status        |
-| ------------------------- | ------------- | --------------- | ------------- |
-| **macOS Apple Silicon**   | ✅ MPS        | ❌              | ✅ Verified   |
-| **Linux x86_64 no GPU**   | ✅ CPU        | ❌              | ✅ Verified   |
-| **Linux x86_64 + NVIDIA** | ✅ CUDA       | ✅              | ❓ Unverified |
-| **macOS Intel**           | ✅ CPU        | ❌              | ❓ Unverified |
-| **Windows**               | ❓ Unverified | ❓              | ❓ Unverified |
+| Platform                    | Inference  | Video Rendering | Status        |
+| --------------------------- | ---------- | --------------- | ------------- |
+| **macOS Apple Silicon**     | ✅ MPS     | ❌              | ✅ Verified   |
+| **Windows x86_64**          | ✅ CPU     | ❌              | ✅ Verified   |
+| **Windows x86_64 + NVIDIA** | ✅ CUDA   | ❓              | ❓ Unverified |
+| **Linux x86_64**            | ✅ CPU     | ❌              | ✅ Verified   |
+| **Linux x86_64 + NVIDIA**   | ✅ CUDA   | ✅              | ❓ Unverified |
+| **macOS Intel**             | ✅ CPU     | ❌              | ❓ Unverified |
 
 > 📢 **No GPU? No problem!** 3D model generation works on pure CPU. Only video rendering requires CUDA.  
+> 💡 With NVIDIA GPU, the install script **auto-detects and installs CUDA-enabled PyTorch**, no manual config needed.  
 > 👉 Unverified platforms should theoretically work. Report issues on [GitHub Issues](https://github.com/lueluelue12138/sharp-gui/issues).
 
 ### Option 1: Download Pre-built Package (Recommended for Users)
@@ -199,10 +203,10 @@ Download the latest version from [Releases](https://github.com/lueluelue12138/sh
 
 ```bash
 # 1. Download and extract
-unzip sharp-gui-v1.0.0.zip
+unzip sharp-gui-vX.Y.Z.zip
 cd sharp-gui
 
-# 2. Run install script (Python only)
+# 2. Run install script (auto-configures Python env, downloads model, generates certs)
 ./install.sh      # Linux/macOS
 # or
 install.bat       # Windows
@@ -214,7 +218,7 @@ run.bat           # Windows
 ```
 
 > 💡 Pre-built packages include compiled frontend, **no Node.js required**. Ready to use out of the box.  
-> ⚠️ Note: Pre-built packages are based on stable releases and may not include the latest development features.
+> 💡 Want latest features? Download [Pre-release](https://github.com/lueluelue12138/sharp-gui/releases) versions (marked as `Pre-release`).
 
 ### Option 2: Install from Source (Developers / Latest Features)
 
@@ -234,6 +238,17 @@ install.bat       # Windows
 
 > 💡 The install script auto-generates HTTPS certificates. HTTPS mode is recommended for full functionality.
 
+### What Does the Install Script Do?
+
+The install script automatically handles all setup steps, no manual configuration needed:
+
+- 🐍 **Detect/Install Python** - Auto-finds compatible version (3.10~3.13), auto-installs if missing (Windows)
+- 📦 **Detect/Install Git** - Auto-installs if missing (Windows)
+- 🎮 **Detect NVIDIA GPU** - Auto-installs CUDA-enabled PyTorch with smart cu118/cu124 selection
+- 🧩 **Install Dependencies** - Creates virtual environment, installs ml-sharp core and GUI deps
+- 📥 **Pre-download Model** - Downloads inference model (~500MB) during install, no wait on first run
+- 🔐 **Generate HTTPS Certificate** - Auto-generates self-signed certificate for secure LAN access
+
 ### Start Server
 
 ```bash
@@ -244,6 +259,19 @@ run.bat           # Windows
 ```
 
 Access **https://127.0.0.1:5050 (recommended)** or **http://127.0.0.1:5050** 🎉
+
+### Update
+
+```bash
+# Update to latest stable release
+./update.sh       # Linux/macOS
+update.bat        # Windows
+
+# Update to latest version (including pre-releases)
+./update.sh --pre
+```
+
+> 💡 The update script auto-detects the latest Release and downloads it, preserving your models and output files.
 
 ---
 
@@ -459,8 +487,7 @@ Issues and Pull Requests are welcome!
 - 🐛 **Bug Reports** - Submit issues on [GitHub Issues](https://github.com/lueluelue12138/sharp-gui/issues)
 - 💡 **Feature Requests** - Discuss new feature ideas via Issues
 - 🔧 **Code Contributions** - Fork the project and submit PRs
-
-If you've tested on other platforms (Linux/Windows), feedback is appreciated!
+- 🖥️ **Platform Testing** - If you've tested on NVIDIA GPU or other unverified environments, we'd love your feedback!
 
 ---
 
