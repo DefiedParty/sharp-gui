@@ -42,18 +42,21 @@ jobs:
           mkdir -p release-build
 
           # 复制核心文件
-          cp app.py generate_cert.py download_model.py release-build/
-          cp install.sh install.bat run.sh run.bat build.sh build.bat release-build/
+          cp app.py release-build/
+          cp install.sh install.bat run.sh run.bat build.sh build.bat update.sh update.bat release-build/
           cp README.md README.en.md LICENSE release-build/ 2>/dev/null || true
 
           # 复制目录
-          cp -r templates static release-build/
+          cp -r tools templates static release-build/
           cp -r frontend release-build/
 
           # 清理不需要的文件
           rm -rf release-build/frontend/node_modules
           rm -rf release-build/frontend/.vite
           rm -rf release-build/frontend/src  # 普通用户不需要源码
+
+          # 写入版本号
+          echo "${VERSION}" > release-build/version.txt
 
           # 创建 zip
           cd release-build

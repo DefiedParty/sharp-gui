@@ -295,7 +295,7 @@ download_model() {
     VENV_DIR="$SCRIPT_DIR/venv"
     source "$VENV_DIR/bin/activate"
     
-    if python "$SCRIPT_DIR/download_model.py"; then
+    if python "$SCRIPT_DIR/tools/download_model.py"; then
         print_success "模型准备完成"
     else
         print_warning "模型下载失败，首次推理时会重试下载"
@@ -323,12 +323,12 @@ generate_https_cert() {
     fi
     
     # 生成证书
-    if python "$SCRIPT_DIR/generate_cert.py"; then
+    if python "$SCRIPT_DIR/tools/generate_cert.py"; then
         print_success "HTTPS 证书已生成"
     else
         print_warning "证书生成失败，但不影响基本功能"
         echo "  HTTPS 不可用，陀螺仪功能仅限本机访问"
-        echo "  可稍后手动运行: python generate_cert.py"
+        echo "  可稍后手动运行: python tools/generate_cert.py"
     fi
 }
 

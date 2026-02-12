@@ -41,13 +41,13 @@ rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 
 # Copy core files
-cp app.py generate_cert.py "$RELEASE_DIR/"
-cp install.sh install.bat run.sh run.bat build.sh build.bat "$RELEASE_DIR/"
+cp app.py "$RELEASE_DIR/"
+cp install.sh install.bat run.sh run.bat build.sh build.bat update.sh update.bat "$RELEASE_DIR/"
 cp release.sh release.bat "$RELEASE_DIR/" 2>/dev/null || true
 cp README.md README.en.md LICENSE "$RELEASE_DIR/" 2>/dev/null || true
 
 # Copy directories
-cp -r templates static frontend "$RELEASE_DIR/"
+cp -r tools templates static frontend "$RELEASE_DIR/"
 
 # Clean unnecessary files
 rm -rf "$RELEASE_DIR/frontend/node_modules"

@@ -43,13 +43,15 @@ mkdir "%RELEASE_DIR%"
 
 REM Copy core files
 copy app.py "%RELEASE_DIR%\" >nul
-copy generate_cert.py "%RELEASE_DIR%\" >nul
+REM tools/ directory contains generate_cert.py, download_model.py, detect_cuda.py, update.py
 copy install.sh "%RELEASE_DIR%\" >nul
 copy install.bat "%RELEASE_DIR%\" >nul
 copy run.sh "%RELEASE_DIR%\" >nul
 copy run.bat "%RELEASE_DIR%\" >nul
 copy build.sh "%RELEASE_DIR%\" >nul
 copy build.bat "%RELEASE_DIR%\" >nul
+copy update.sh "%RELEASE_DIR%\" >nul
+copy update.bat "%RELEASE_DIR%\" >nul
 copy release.sh "%RELEASE_DIR%\" >nul 2>nul
 copy release.bat "%RELEASE_DIR%\" >nul 2>nul
 copy README.md "%RELEASE_DIR%\" >nul 2>nul
@@ -57,6 +59,7 @@ copy README.en.md "%RELEASE_DIR%\" >nul 2>nul
 copy LICENSE "%RELEASE_DIR%\" >nul 2>nul
 
 REM Copy directories
+xcopy /E /I /Q tools "%RELEASE_DIR%\tools" >nul
 xcopy /E /I /Q templates "%RELEASE_DIR%\templates" >nul
 xcopy /E /I /Q static "%RELEASE_DIR%\static" >nul
 xcopy /E /I /Q frontend "%RELEASE_DIR%\frontend" >nul

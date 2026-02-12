@@ -321,7 +321,7 @@ HTTPS enables **gyroscope on LAN devices** (browsers require secure context for 
 The install script auto-generates certificates. For manual generation:
 
 ```bash
-python generate_cert.py
+python tools/generate_cert.py
 ```
 
 > 💡 **Windows Users**: Install [Git for Windows](https://git-scm.com/download/win) or OpenSSL first.
@@ -347,8 +347,13 @@ sharp-gui/
 ├── 📄 install.sh/bat         # One-click install scripts
 ├── 📄 run.sh/bat             # Startup scripts (supports --legacy flag)
 ├── 📄 build.sh/bat           # Frontend build scripts
+├── 📄 update.sh/bat          # Auto-update scripts
 ├── 📄 release.sh/bat         # Release packaging scripts
-├── 📄 generate_cert.py       # SSL certificate generator
+├── 📁 tools/                 # Utility scripts
+│   ├── 📄 generate_cert.py   # SSL certificate generator
+│   ├── 📄 download_model.py  # Model downloader
+│   ├── 📄 detect_cuda.py     # CUDA version detection
+│   └── 📄 update.py          # Auto-update core logic
 ├── 📁 frontend/              # React modern frontend (v1.0.0+)
 ├── 📁 templates/             # Original single-file frontend (Legacy)
 ├── 📁 static/lib/            # Three.js + Gaussian Splats 3D

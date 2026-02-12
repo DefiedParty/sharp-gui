@@ -102,7 +102,7 @@ if exist "%SCRIPT_DIR%cert.pem" if exist "%SCRIPT_DIR%key.pem" (
 ) else (
     set PROTOCOL=http
     echo [HTTP] 陀螺仪功能仅本机可用
-    echo 运行 python generate_cert.py 可启用 HTTPS
+    echo 运行 python tools\generate_cert.py 可启用 HTTPS
 )
 echo.
 echo 访问地址 (Access URLs):

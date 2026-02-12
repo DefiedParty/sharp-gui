@@ -95,7 +95,7 @@ if [ -f "$SCRIPT_DIR/cert.pem" ] && [ -f "$SCRIPT_DIR/key.pem" ]; then
 else
     PROTOCOL="http"
     echo "🌐 HTTP 模式"
-    echo "   💡 运行 'python generate_cert.py' 可启用 HTTPS，支持局域网陀螺仪"
+    echo "   💡 运行 'python tools/generate_cert.py' 可启用 HTTPS，支持局域网陀螺仪"
 fi
 echo ""
 echo "访问地址 (Access URLs):"

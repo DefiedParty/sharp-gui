@@ -324,7 +324,7 @@ run.bat           # Windows
 安装脚本会自动尝试生成证书。如需手动生成：
 
 ```bash
-python generate_cert.py
+python tools/generate_cert.py
 ```
 
 > 💡 **Windows 用户**: 需要先安装 [Git for Windows](https://git-scm.com/download/win) 或 OpenSSL。
@@ -350,8 +350,13 @@ sharp-gui/
 ├── 📄 install.sh/bat         # 一键安装脚本
 ├── 📄 run.sh/bat             # 启动脚本 (支持 --legacy 参数)
 ├── 📄 build.sh/bat           # 前端构建脚本
+├── 📄 update.sh/bat          # 自动更新脚本
 ├── 📄 release.sh/bat         # 发布打包脚本
-├── 📄 generate_cert.py       # SSL 证书生成工具
+├── 📁 tools/                 # 工具脚本
+│   ├── 📄 generate_cert.py   # SSL 证书生成工具
+│   ├── 📄 download_model.py  # 模型下载工具
+│   ├── 📄 detect_cuda.py     # CUDA 版本检测
+│   └── 📄 update.py          # 自动更新核心逻辑
 ├── 📁 frontend/              # React 现代前端 (v1.0.0+)
 ├── 📁 templates/             # 原始单文件前端 (Legacy)
 ├── 📁 static/lib/            # Three.js + Gaussian Splats 3D
