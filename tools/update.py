@@ -24,7 +24,9 @@ SERVER_PORT = 5050
 
 
 def get_script_dir():
-    return os.path.dirname(os.path.abspath(__file__))
+    """Return project root directory (parent of tools/)."""
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(tools_dir)
 
 
 def get_current_version():
