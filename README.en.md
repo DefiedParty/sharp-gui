@@ -188,7 +188,7 @@ Built with Apple Human Interface Guidelines for a premium user experience:
 | --------------------------- | ---------- | --------------- | ------------- |
 | **macOS Apple Silicon**     | ✅ MPS     | ❌              | ✅ Verified   |
 | **Windows x86_64**          | ✅ CPU     | ❌              | ✅ Verified   |
-| **Windows x86_64 + NVIDIA** | ✅ CUDA   | ❓              | ❓ Unverified |
+| **Windows x86_64 + NVIDIA** | ✅ CUDA    | ❓              | ✅ Verified   |
 | **Linux x86_64**            | ✅ CPU     | ❌              | ✅ Verified   |
 | **Linux x86_64 + NVIDIA**   | ✅ CUDA   | ✅              | ❓ Unverified |
 | **macOS Intel**             | ✅ CPU     | ❌              | ❓ Unverified |
@@ -272,6 +272,19 @@ update.bat        # Windows
 ```
 
 > 💡 The update script auto-detects the latest Release and downloads it, preserving your models and output files.
+
+### Uninstall
+
+All dependencies are installed inside the project's `venv/` virtual environment and won't affect your system. To uninstall, simply delete the project folder:
+
+```bash
+# Delete project (includes venv, ml-sharp, models, etc.)
+rm -rf sharp-gui/
+
+# (Optional) Clean model cache
+# Windows: del %USERPROFILE%\.cache\torch\hub\checkpoints\sharp_*.pt
+# macOS/Linux: rm ~/.cache/torch/hub/checkpoints/sharp_*.pt
+```
 
 ---
 

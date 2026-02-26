@@ -12,7 +12,7 @@ import tempfile
 import re
 import argparse
 
-CERT_DIR = os.path.dirname(os.path.abspath(__file__))
+CERT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root
 CERT_FILE = os.path.join(CERT_DIR, 'cert.pem')
 KEY_FILE = os.path.join(CERT_DIR, 'key.pem')
 

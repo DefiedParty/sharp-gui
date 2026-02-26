@@ -327,7 +327,7 @@ exit /b 1
 
 :python_version_ok
 REM Show which python we are using
-for /f "tokens=*" %%i in ('!PYTHON_CMD! --version 2^>^&1') do echo [OK] 将使用: %%i (!PYTHON_CMD!)
+for /f "tokens=*" %%i in ('!PYTHON_CMD! --version 2^>^&1') do echo [OK] 将使用: %%i ^(!PYTHON_CMD!^)
 
 REM Check venv module
 !PYTHON_CMD! -m venv --help >nul 2>&1
@@ -564,14 +564,17 @@ where nvidia-smi >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     echo.
     echo [GPU] 检测到 NVIDIA GPU，检查 PyTorch CUDA 支持...
+    set NEED_CUDA_TORCH=true
+)
 
-    REM 检查当前 PyTorch 是否已支持 CUDA
-    python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>nul
-    if !ERRORLEVEL! neq 0 (
-        set NEED_CUDA_TORCH=true
-        echo [GPU] 当前 PyTorch 不支持 CUDA，将自动选择合适的 CUDA 版本
-    ) else (
+REM 检查当前 PyTorch 是否已支持 CUDA (python -c 含括号, 必须在 if 块外执行)
+if "!NEED_CUDA_TORCH!"=="true" (
+    python -c "import torch; exit^(0 if torch.cuda.is_available^(^) else 1^)" 2>nul
+    if !ERRORLEVEL! equ 0 (
+        set NEED_CUDA_TORCH=false
         echo [GPU] PyTorch 已支持 CUDA，无需重装
+    ) else (
+        echo [GPU] 当前 PyTorch 不支持 CUDA，将自动选择合适的 CUDA 版本
     )
 )
 
@@ -583,34 +586,38 @@ if "!NEED_CUDA_TORCH!"=="true" (
     del "%TEMP%\sharp_cuda_ver.tmp" 2>nul
 )
 
-REM 根据检测结果选择 CUDA 版本 (放在括号外避免嵌套延迟展开问题)
-if "!NEED_CUDA_TORCH!"=="true" (
-    if defined DRIVER_CUDA_VER (
-        echo [GPU] 驱动支持的 CUDA 版本: !DRIVER_CUDA_VER!
-
-        REM 提取主版本号
-        for /f "tokens=1 delims=." %%m in ("!DRIVER_CUDA_VER!") do set CUDA_MAJOR=%%m
-
-        if !CUDA_MAJOR! geq 12 (
-            set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu124
-            echo [GPU] 选择 PyTorch CUDA 12.4 版本
-        ) else if !CUDA_MAJOR! geq 11 (
-            set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu118
-            echo [GPU] 选择 PyTorch CUDA 11.8 版本
-        ) else (
-            echo [警告] CUDA 版本过低 ^(!DRIVER_CUDA_VER!^)，将使用 CPU 模式
-            set NEED_CUDA_TORCH=false
-        )
-    ) else (
-        REM 无法检测版本，使用兼容性最好的 CUDA 11.8
-        set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu118
-        echo [GPU] 无法检测 CUDA 版本，使用兼容性最广的 CUDA 11.8
-    )
+REM 根据检测结果选择 CUDA 版本 (使用 goto 避免嵌套括号导致 CMD 闪退)
+if "!NEED_CUDA_TORCH!"=="true" if not defined DRIVER_CUDA_VER (
+    REM 无法检测版本，使用兼容性最好的 CUDA 11.8
+    set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu118
+    echo [GPU] 无法检测 CUDA 版本，使用兼容性最广的 CUDA 11.8
+    goto :cuda_version_done
 )
+if not "!NEED_CUDA_TORCH!"=="true" goto :cuda_version_done
+
+echo [GPU] 驱动支持的 CUDA 版本: !DRIVER_CUDA_VER!
+
+REM 提取主版本号
+for /f "tokens=1 delims=." %%m in ("!DRIVER_CUDA_VER!") do set CUDA_MAJOR=%%m
+
+if !CUDA_MAJOR! geq 12 (
+    set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu124
+    echo [GPU] 选择 PyTorch CUDA 12.4 版本
+    goto :cuda_version_done
+)
+if !CUDA_MAJOR! geq 11 (
+    set CUDA_INDEX_URL=https://download.pytorch.org/whl/cu118
+    echo [GPU] 选择 PyTorch CUDA 11.8 版本
+    goto :cuda_version_done
+)
+echo [警告] CUDA 版本过低 (!DRIVER_CUDA_VER!)，将使用 CPU 模式
+set NEED_CUDA_TORCH=false
+
+:cuda_version_done
 
 if "!NEED_CUDA_TORCH!"=="true" (
     echo.
-    echo 正在安装 CUDA 版 PyTorch (这可能需要几分钟)...
+    echo 正在安装 CUDA 版 PyTorch, 这可能需要几分钟...
     echo 下载源: !CUDA_INDEX_URL!
     pip install torch torchvision --index-url !CUDA_INDEX_URL! --force-reinstall
     if !ERRORLEVEL! neq 0 (
@@ -640,7 +647,7 @@ cd /d "%SCRIPT_DIR%"
 
 REM --- 保护: 确保 CUDA torch 没有被 requirements.txt 覆盖 ---
 if "!NEED_CUDA_TORCH!"=="true" (
-    python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>nul
+    python -c "import torch; exit^(0 if torch.cuda.is_available^(^) else 1^)" 2>nul
     if !ERRORLEVEL! neq 0 (
         echo.
         echo [GPU] CUDA PyTorch 被 requirements.txt 覆盖，正在重新安装...
@@ -669,7 +676,7 @@ python "%SCRIPT_DIR%tools\download_model.py"
 if !ERRORLEVEL! neq 0 (
     echo.
     echo [警告] 模型下载失败，首次推理时会重试下载
-    echo         也可稍后手动下载 (见下方提示)
+    echo         也可稍后手动下载, 见下方提示
 )
 
 REM ============================================================
