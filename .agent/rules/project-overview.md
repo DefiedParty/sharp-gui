@@ -1,0 +1,133 @@
+# 项目架构总览
+
+## 架构模式
+
+Sharp GUI 采用 **前后端分离 + 双前端模式** 架构：
+
+```
+┌─────────────────────────────────────────────────┐
+│  浏览器（桌面 / 移动端 / VR）                      │
+│  ┌───────────────────┬────────────────────────┐  │
+│  │  React 19 前端     │  Three.js + GS3D 渲染  │  │
+│  │  (Zustand + i18n) │  (WebGL / WebXR)       │  │
+│  └────────┬──────────┴─────────┬──────────────┘  │
+│           │ fetch              │ .ply/.splat      │
+└───────────┼────────────────────┼──────────────────┘
+            │ /api/*             │ /files/*
+┌───────────┼────────────────────┼──────────────────┐
+│  Flask 后端 (app.py)                              │
+│  ┌────────┴───────┐  ┌────────┴──────────────┐   │
+│  │  REST API 层    │  │  静态文件服务          │   │
+│  │  (JSON 响应)    │  │  (inputs/outputs)     │   │
+│  └────────┬───────┘  └───────────────────────┘   │
+│           │                                       │
+│  ┌────────┴───────────────────────────────────┐  │
+│  │  任务队列 (queue.Queue + threading.Lock)    │  │
+│  │  → subprocess 调用 sharp predict            │  │
+│  └────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────┘
+            │ subprocess
+┌───────────┴───────────────────────────────────────┐
+│  Apple ml-sharp (PyTorch + gsplat)                │
+│  sharp predict -i <input> -o <output>             │
+└───────────────────────────────────────────────────┘
+```
+
+## 双前端模式
+
+通过环境变量 `SHARP_FRONTEND_MODE` 切换：
+
+| 模式 | 值 | 说明 |
+|------|----|------|
+| **React**（默认） | `react` | 现代 SPA，构建产物在 `frontend/dist/` |
+| **Legacy** | `legacy` | 单文件版，`templates/index.html`（4556 行） |
+
+启动脚本 `run.sh` 通过 `--legacy` 参数切换。
+
+## 目录结构
+
+```
+sharp-gui/
+├── app.py                    # Flask 后端 + 任务队列（单文件，~831行）
+├── config.json               # 运行时配置（workspace_folder）
+├── install.sh / install.bat  # 一键安装脚本（Python/Git/CUDA/依赖/模型/证书）
+├── run.sh / run.bat          # 启动脚本（支持 --legacy）
+├── build.sh / build.bat      # 前端构建脚本
+├── release.sh / release.bat  # 发布打包脚本
+├── update.sh / update.bat    # 自动更新脚本
+│
+├── frontend/                 # React 前端
+│   ├── src/
+│   │   ├── api/              #   API 层（client.ts + 功能模块）
+│   │   ├── components/       #   组件（common/gallery/layout/viewer 四类）
+│   │   │   ├── common/       #     通用 UI：Button, Icons, Loading, Modal, ParticleBackground
+│   │   │   ├── gallery/      #     图库：GalleryItem, GalleryList
+│   │   │   ├── layout/       #     布局：Sidebar, ControlsBar, Help, Settings, TaskQueue
+│   │   │   └── viewer/       #     查看器：ViewerCanvas, GyroIndicator, VirtualJoystick, SpeedTooltip
+│   │   ├── hooks/            #   自定义 Hooks（useViewer, useKeyboard, useGyroscope 等）
+│   │   ├── i18n/             #   国际化（index.ts + en.json + zh.json）
+│   │   ├── store/            #   Zustand 状态管理（useAppStore.ts）
+│   │   ├── styles/           #   全局样式（variables.css, animations.css, global.css）
+│   │   ├── types/            #   TypeScript 类型定义
+│   │   └── utils/            #   工具函数（camera.ts, format.ts）
+│   ├── vite.config.ts        #   Vite 配置（代理、分包、HTTPS）
+│   ├── tsconfig.json         #   TypeScript 配置（strict mode）
+│   └── eslint.config.js      #   ESLint flat config
+│
+├── templates/                # Legacy 单文件前端
+│   ├── index.html            #   完整 SPA（4556行）
+│   └── share_template.html   #   导出分享模板
+│
+├── static/lib/               # 预打包的 Three.js + GaussianSplats3D（不可修改）
+├── tools/                    # 工具脚本
+│   ├── detect_cuda.py        #   CUDA 版本检测
+│   ├── download_model.py     #   模型下载（多源 + SHA256 校验）
+│   ├── generate_cert.py      #   SSL 证书生成
+│   └── update.py             #   自动更新逻辑
+│
+├── ml-sharp/                 # Apple ML-Sharp 引擎（⚠️ 不可修改）
+├── inputs/                   # 用户上传的图片
+├── outputs/                  # 生成的 3D 模型 (.ply)
+└── docs/                     # GitHub Pages 产品介绍页
+```
+
+## 关键依赖版本
+
+### 前端 (package.json)
+
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| react / react-dom | ^19.2.0 | UI 框架 |
+| zustand | ^5.0.10 | 状态管理 |
+| three | ^0.182.0 | 3D 渲染引擎 |
+| @mkkellogg/gaussian-splats-3d | ^0.4.7 | 高斯溅射渲染器 |
+| i18next | ^25.8.0 | 国际化核心 |
+| react-i18next | ^16.5.3 | React 绑定 |
+| typescript | ~5.9.3 | 类型系统 |
+| vite | ^7.2.4 | 构建工具 |
+| eslint | ^9.39.1 | 代码检查 |
+
+### 后端
+
+| 依赖 | 说明 |
+|------|------|
+| Python 3.10~3.13 | 运行环境 |
+| Flask | Web 框架 |
+| Pillow (PIL) | 图片处理 / 缩略图 |
+| numpy | PLY 数据处理 |
+| plyfile | PLY 文件解析 |
+| ml-sharp (sharp CLI) | AI 推理引擎 |
+
+## 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `SHARP_FRONTEND_MODE` | `react` | 前端模式：`react` 或 `legacy` |
+| `SHARP_LAN_IP` | 自动检测 | 局域网访问 IP |
+| `PYTHONHTTPSVERIFY` | `0`（安装时） | 绕过 SSL 验证（企业/学校网络） |
+
+## 端口与协议
+
+- 默认端口：**5050**
+- HTTPS：自动检测项目根目录下 `cert.pem` / `key.pem`
+- 开发代理：Vite dev server 将 `/api` 和 `/files` 代理到 `localhost:5050`

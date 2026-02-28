@@ -1,0 +1,138 @@
+# Sharp GUI — Agent 开发规范入口
+
+> **本文件是所有 AI Agent 进入项目时必须首先阅读的入口文件。**
+> 请在执行任何代码修改前，完整阅读本文件及其引用的规范文档。
+>
+> 跨平台入口：`CLAUDE.md`（Claude Code）、`AGENTS.md`（OpenAI Codex）、`.github/copilot-instructions.md`（GitHub Copilot）均指向本文件。
+
+---
+
+## 项目简介
+
+Sharp GUI 是一个 **3D 高斯溅射 (Gaussian Splatting) 图形化界面**，基于 Apple 开源的 [ml-sharp](https://github.com/apple/ml-sharp) 推理引擎。用户上传单张图片，后端调用 `sharp predict` 生成 `.ply` 3D 模型，前端用 WebGL（Three.js + Gaussian Splats 3D）实时预览。
+
+## 核心技术栈
+
+| 层级 | 技术 | 版本 |
+|------|------|------|
+| 前端框架 | React + TypeScript + Vite | 19 / 5.9 / 7 |
+| 状态管理 | Zustand | 5 |
+| 国际化 | i18next + react-i18next | 25 / 16 |
+| 3D 渲染 | Three.js + @mkkellogg/gaussian-splats-3d | 0.182 / 0.4 |
+| 后端 | Python + Flask | 3.10+ / latest |
+| AI 引擎 | Apple ml-sharp (PyTorch, gsplat) | — |
+| 样式方案 | CSS Modules + CSS Variables（Apple 毛玻璃设计语言） | — |
+| CI/CD | GitHub Actions (tag `v*` 触发构建发布) | — |
+
+## 规范文件索引
+
+### 📐 规则 (Rules) — 必须遵守
+
+| 文件 | 说明 |
+|------|------|
+| [.agent/rules/project-overview.md](.agent/rules/project-overview.md) | 项目架构总览、目录结构、依赖版本、环境变量 |
+| [.agent/rules/code-style.md](.agent/rules/code-style.md) | 命名规范、导入排序、格式化约定 |
+| [.agent/rules/frontend-guide.md](.agent/rules/frontend-guide.md) | 前端开发规范：组件、状态管理、API、Hooks、类型系统 |
+| [.agent/rules/backend-guide.md](.agent/rules/backend-guide.md) | 后端开发规范：Flask 路由、任务队列、文件处理 |
+| [.agent/rules/i18n-guide.md](.agent/rules/i18n-guide.md) | 国际化规范：双语维护、key 命名、使用方式 |
+| [.agent/rules/styling-guide.md](.agent/rules/styling-guide.md) | 样式规范：CSS Modules、设计系统 Token、Apple 设计语言 |
+| [.agent/rules/testing.md](.agent/rules/testing.md) | 测试规范：框架选型、文件命名、覆盖目标 |
+
+### 🔄 工作流 (Workflows) — 常见任务模板
+
+| 文件 | 说明 |
+|------|------|
+| [.agent/workflows/new-component.md](.agent/workflows/new-component.md) | 创建新 React 组件的完整步骤 |
+| [.agent/workflows/new-api-endpoint.md](.agent/workflows/new-api-endpoint.md) | 添加新 API 端点（前后端联动） |
+| [.agent/workflows/new-hook.md](.agent/workflows/new-hook.md) | 创建新自定义 Hook |
+| [.agent/workflows/add-i18n-key.md](.agent/workflows/add-i18n-key.md) | 添加国际化文本 |
+| [.agent/workflows/release.md](.agent/workflows/release.md) | 版本发布流程 |
+
+### 🧠 技能 (Skills) — Agent 可调用的专项能力
+
+| 技能 | 说明 | 触发场景 |
+|------|------|----------|
+| [.agent/skills/commit-and-release/SKILL.md](.agent/skills/commit-and-release/SKILL.md) | Commit Message 和 Release Note 格式规范（Conventional Commits 中文版 + 中英双语 Release Note 模板） | 用户要求生成 commit message 或 release note 时 |
+| [.agent/skills/ui-ux-pro-max/SKILL.md](.agent/skills/ui-ux-pro-max/SKILL.md) | UI/UX 设计智能系统（67 种样式、96 组配色、57 组字体、99 条 UX 准则、13 种技术栈指南），含 Python 脚本可生成完整设计系统 | 用户要求 UI/UX 设计、界面改进、创建新页面时 |
+
+> **Skills 与 Rules/Workflows 的区别**：
+> - **Rules** = 被动约束，编码时始终遵守（"必须怎样写"）
+> - **Workflows** = 顺序步骤，执行特定任务时参考（"怎样完成某个任务"）
+> - **Skills** = 主动能力，用户明确请求时调用，可携带脚本/数据（"Agent 能做什么"）
+
+---
+
+## 🔴 全局红线 — 绝对不可违反
+
+### 禁止引入
+
+- ❌ **CSS-in-JS**（styled-components / Emotion / Stitches）→ 使用 CSS Modules
+- ❌ **Tailwind CSS** → 使用 CSS Variables 设计系统
+- ❌ **Sass / Less / SCSS** → 使用原生 CSS + CSS Variables
+- ❌ **axios** → 使用 `api/client.ts` 中封装的原生 fetch
+- ❌ **ORM** (SQLAlchemy 等) → 后端为无数据库架构，使用文件系统
+- ❌ **export default** → 统一使用命名导出
+- ❌ **class 组件** → 统一使用函数组件
+- ❌ **Redux / MobX** → 使用 Zustand
+
+### 必须遵守
+
+- ✅ **添加用户可见文本时，必须同时维护 `en.json` 和 `zh.json`**
+- ✅ **前端导入路径必须使用 `@/` 别名**（不用 `../../../` 相对路径）
+- ✅ **类型导入必须使用 `import type`**（`verbatimModuleSyntax` 已启用）
+- ✅ **新组件必须遵循三件套结构**：`ComponentName.tsx` + `ComponentName.module.css` + `index.ts`
+- ✅ **新 API 端点必须使用 `/api/` 前缀**，返回 JSON
+- ✅ **Python 代码使用 `snake_case`，TypeScript 代码使用 `camelCase`**
+- ✅ **修改后端 API 时，必须同步更新前端 `api/` 层的调用函数和 `types/` 中的类型定义**
+
+### 注意事项
+
+- ⚠️ `app.py` 是单文件后端（831 行），修改时注意不要破坏现有路由和线程安全
+- ⚠️ `templates/index.html` 是 Legacy 单文件前端（4556 行），除非明确要求，否则不要修改
+- ⚠️ `ml-sharp/` 是 Apple 上游子项目，**不要修改其中任何文件**
+- ⚠️ `static/lib/` 中的 Three.js 和 GaussianSplats3D 是预打包文件，不要修改
+- ⚠️ 现有代码中存在一些不一致（如 `React.FC` vs 函数声明、i18n key 命名混用），这些是**历史遗留**，不要求修改，但新代码必须遵循本规范
+
+### 历史遗留须知
+
+以下不一致存在于现有代码中，**不要求修改现有代码**，但新代码必须遵循统一规范：
+
+- 部分组件使用 `React.FC`（如 `ViewerCanvas`、`Settings`、`ControlsBar`）→ 新组件统一使用 `export function`
+- 部分 i18n key 使用下划线（如 `controls_view_front`）→ 新 key 统一使用 `camelCase`
+- 部分组件目录缺少 `index.ts` 桶导出 → 新组件必须包含
+- `index.css` 和 `variables.css` 存在 CSS 变量重复定义 → 新变量统一定义在 `variables.css`
+
+---
+
+## 🔍 Agent 开始工作前的检查清单
+
+1. 阅读本文件 (`.antigravityrules`)
+2. 根据任务类型阅读对应的 `.agent/rules/*.md` 规范
+3. 如果任务涉及常见操作，参考 `.agent/workflows/*.md` 工作流模板
+4. 确认理解全局红线规则后再开始编码
+5. 完成后自查：命名规范 ✓ | 导入排序 ✓ | i18n 同步 ✓ | 类型正确 ✓ | 样式合规 ✓
+
+---
+
+## 快速参考
+
+```
+sharp-gui/
+├── app.py                    # Flask 后端（单文件，831行）
+├── config.json               # 运行时配置（workspace 路径）
+├── frontend/src/             # React 前端源码
+│   ├── api/                  #   API 客户端（fetch 封装）
+│   ├── components/           #   组件（common/gallery/layout/viewer）
+│   ├── hooks/                #   自定义 Hooks
+│   ├── i18n/                 #   国际化（en.json + zh.json）
+│   ├── store/                #   Zustand 状态管理
+│   ├── styles/               #   全局样式 + 设计系统 Token
+│   ├── types/                #   TypeScript 类型定义
+│   └── utils/                #   工具函数
+├── templates/                # Legacy 单文件前端
+├── static/lib/               # 预打包的 Three.js + GaussianSplats3D
+├── tools/                    # Python 工具脚本
+├── ml-sharp/                 # Apple ML-Sharp 引擎（不可修改）
+├── inputs/                   # 用户上传的图片
+└── outputs/                  # 生成的 3D 模型
+```
