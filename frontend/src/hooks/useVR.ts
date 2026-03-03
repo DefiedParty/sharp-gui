@@ -56,8 +56,9 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
 
   /**
    * Process VR controller input and move camera
-   * Left stick: Move forward/backward, strafe left/right
-   * Right stick: Turn left/right (optional)
+   * Left stick: Move forward/backward/strafe (6DOF, follows view direction)
+   * Right stick X: Turn left/right (Y-axis rotation)
+   * Right stick Y: Move up/down (vertical)
    */
   const processControllerInput = useCallback((session: XRSession) => {
     const viewer = viewerRef.current;
@@ -79,25 +80,28 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
       let moveX = 0;
       let moveY = 0;
       let turnX = 0;
+      let turnY = 0;
 
       if (inputSource.handedness === 'left') {
-        // Left controller - movement
+        // Left controller - movement (6DOF, follows view direction)
         // Quest controllers: axes[2] = X, axes[3] = Y for thumbstick
         moveX = axes.length > 2 ? axes[2] : axes[0];
         moveY = axes.length > 3 ? axes[3] : axes[1];
       } else if (inputSource.handedness === 'right') {
-        // Right controller - turning
+        // Right controller - turning (X) + vertical movement (Y)
         turnX = axes.length > 2 ? axes[2] : axes[0];
+        turnY = axes.length > 3 ? axes[3] : axes[1];
       }
 
       // Apply deadzone
       if (Math.abs(moveX) < DEADZONE) moveX = 0;
       if (Math.abs(moveY) < DEADZONE) moveY = 0;
       if (Math.abs(turnX) < DEADZONE) turnX = 0;
+      if (Math.abs(turnY) < DEADZONE) turnY = 0;
 
       // Debug: log when there's actual input
-      if (moveX !== 0 || moveY !== 0 || turnX !== 0) {
-        console.log(`[VR] Controller input - moveX: ${moveX.toFixed(2)}, moveY: ${moveY.toFixed(2)}, turnX: ${turnX.toFixed(2)}`);
+      if (moveX !== 0 || moveY !== 0 || turnX !== 0 || turnY !== 0) {
+        console.log(`[VR] Controller input - moveX: ${moveX.toFixed(2)}, moveY: ${moveY.toFixed(2)}, turnX: ${turnX.toFixed(2)}, turnY: ${turnY.toFixed(2)}`);
       }
 
       // In WebXR, we can't directly move the XR camera - it's controlled by the headset
@@ -107,18 +111,16 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
       const splatMesh = viewerAny.splatMesh;
       if (!splatMesh) return;
 
-      // Movement (left stick) - move the model (inverse direction = player moves)
+      // Movement (left stick) - 6DOF: move along view direction (no horizontal clamping)
       if (moveX !== 0 || moveY !== 0) {
-        // Get camera direction (forward vector)
+        // Get camera direction (forward vector) - full 3D, no Y clamping for 6DOF flight
         const forward = new THREE.Vector3(0, 0, -1);
         forward.applyQuaternion(camera.quaternion);
-        forward.y = 0; // Keep movement horizontal
         forward.normalize();
 
-        // Right vector (strafe)
+        // Right vector (strafe) - full 3D
         const right = new THREE.Vector3(1, 0, 0);
         right.applyQuaternion(camera.quaternion);
-        right.y = 0;
         right.normalize();
 
         // Calculate movement delta (INVERTED - we move the model, not the camera)
@@ -134,10 +136,15 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
         splatMesh.position.add(delta);
       }
 
-      // Turning (right stick) - rotate the model around Y axis
+      // Turning (right stick X) - rotate the model around Y axis
       if (turnX !== 0) {
         // Rotate splatMesh (opposite direction = player turns)
         splatMesh.rotation.y += turnX * VR_TURN_SPEED;
+      }
+
+      // Vertical movement (right stick Y) - move model up/down
+      if (turnY !== 0) {
+        splatMesh.position.y += turnY * VR_MOVE_SPEED;
       }
     }
   }, [viewerRef]);
@@ -185,16 +192,23 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
         if (session) {
           sessionRef.current = session;
           
-          // Set webXRActive flag on viewer (the library checks this)
+          // Set webXRActive flag on viewer (the library checks this for adjustForWebXRStereo)
           const viewer = viewerRef.current as any;
           if (viewer) {
             viewer.webXRActive = true;
             
-            // Fix for upside-down rendering in VR:
-            // Flip the splatMesh Y scale to correct the orientation
+            // Save pre-VR splatMesh state for restoration on exit
             if (viewer.splatMesh) {
-              viewer.splatMesh.scale.y *= -1;
-              console.log('[VR] Applied Y-axis flip to fix upside-down rendering');
+              viewer._preVRPosition = viewer.splatMesh.position.clone();
+              viewer._preVRRotation = viewer.splatMesh.rotation.clone();
+              viewer._preVRScale = viewer.splatMesh.scale.clone();
+              
+              // Fix orientation: Gaussian Splatting uses Y-down (COLMAP convention),
+              // WebXR uses Y-up. Rotate 180° around X axis to correct WITHOUT mirroring.
+              // (Previously scale.y *= -1 was used, which changed coordinate handedness
+              // and caused left-right mirroring)
+              viewer.splatMesh.rotation.x += Math.PI;
+              console.log('[VR] Applied X-axis π rotation to fix orientation');
             }
             
             // Ensure camera up vector is correct for XR
@@ -211,10 +225,25 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
           
           await renderer.xr.setSession(session);
           
+          // Dynamic height calibration: read actual headset height on first XR frame
+          let heightCalibrated = false;
+          
           // Switch to XR animation loop - this is crucial!
           // The library normally does this in setupWebXR when webXRMode is set
           renderer.setAnimationLoop(() => {
             if (viewer) {
+              // Dynamic height calibration on first frame:
+              // Read the actual XR camera Y position (real user head height from headset tracking)
+              // and position the model at that height so it appears at eye level
+              if (!heightCalibrated && viewer.splatMesh) {
+                const xrCam = renderer.xr.getCamera();
+                if (xrCam && xrCam.position.y > 0) {
+                  viewer.splatMesh.position.y = xrCam.position.y;
+                  heightCalibrated = true;
+                  console.log(`[VR] Height calibrated to ${xrCam.position.y.toFixed(2)}m`);
+                }
+              }
+              
               // Process controller input for movement
               processControllerInput(session);
               
@@ -230,8 +259,9 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
           
           console.log('[VR] ✅ VR session started');
           console.log('[VR] Controls:');
-          console.log('  - Left stick: Move forward/back, strafe left/right');
-          console.log('  - Right stick: Turn left/right');
+          console.log('  - Left stick: Move in view direction (6DOF flight)');
+          console.log('  - Right stick X: Turn left/right');
+          console.log('  - Right stick Y: Move up/down');
           console.log('  - Head movement: Look around');
 
           // Listen for session end
@@ -241,17 +271,16 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
             // Stop XR animation loop
             renderer.setAnimationLoop(null);
             
-            // Restore webXRActive flag
+            // Restore webXRActive flag and splatMesh state
             if (viewer) {
               viewer.webXRActive = false;
               
-              // Restore splatMesh orientation (flip Y back)
-              if (viewer.splatMesh) {
-                viewer.splatMesh.scale.y *= -1;
-                // Also reset position and rotation that may have been changed during VR
-                viewer.splatMesh.position.set(0, 0, 0);
-                viewer.splatMesh.rotation.set(0, 0, 0);
-                console.log('[VR] Restored splatMesh state after VR exit');
+              // Restore splatMesh to pre-VR state
+              if (viewer.splatMesh && viewer._preVRPosition) {
+                viewer.splatMesh.position.copy(viewer._preVRPosition);
+                viewer.splatMesh.rotation.copy(viewer._preVRRotation);
+                viewer.splatMesh.scale.copy(viewer._preVRScale);
+                console.log('[VR] Restored splatMesh to pre-VR state');
               }
               
               // Restart the normal animation loop

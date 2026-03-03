@@ -37,11 +37,13 @@ type(scope): 简要描述
 ### 示例
 
 **小改动** (单行即可):
+
 ```
 fix: 赋予 update.sh 执行权限
 ```
 
 **中等改动** (附简短说明):
+
 ```
 fix: update.py 解压路径修复 - 移至 tools/ 后解压到了错误目录
 
@@ -50,6 +52,7 @@ get_script_dir() 返回 tools/ 而非项目根目录，导致 zip 被解压
 ```
 
 **大改动** (分类组织):
+
 ```
 feat: 添加自动更新脚本 & 重构工具目录 & 修复 install.bat 闪退
 
@@ -76,7 +79,7 @@ Bug 修复 (install.bat):
 ### 定位
 
 - **面向普通用户**，不展示过多技术实现细节
-- **中英双语**，每行先中文后英文，用 ` / ` 分隔
+- **中英双语**，每行先中文后英文，用 `/` 分隔
 - 语气简洁明了，突出用户能感知到的变化和价值
 - 输出时使用 markdown 代码块包裹，方便用户直接复制
 
@@ -86,19 +89,22 @@ Bug 修复 (install.bat):
 ## 🚀 vX.Y.Z(-rc.N) (Pre-Release)
 
 > ⚠️ 这是预发布版本，用于测试验证。正式版将在测试通过后发布。
-> 
+>
 > ⚠️ This is a pre-release for testing. Stable release coming after validation.
 
 ---
 
 ### 🎯 功能标题 / Feature Title
+
 - **中文粗体关键词**: 中文描述 / English description
 - **中文粗体关键词**: 中文描述 / English description
 
 ### 🐛 Bug 修复 / Bug Fixes
+
 - **修复 xxx**: 中文描述 / English description
 
 ### 🔧 技术改进 / Technical Improvements
+
 - 中文描述 / English description
 
 ---
@@ -130,4 +136,5 @@ Bug 修复 (install.bat):
 5. 如有从旧版升级的说明，加 `### 🔄 从旧版本更新 / Update` 章节
 6. 底部固定 Quick Start + README 链接
 7. 不要写代码实现细节（如函数名、变量名），只写用户能感知的变化
-8. 输出必须用 markdown 代码块包裹 (```markdown ... ```)，方便用户复制
+8. 输出必须用 markdown 代码块包裹 (`markdown ... `)，方便用户复制
+9. Pre-release 版本的更新指引中，`update.bat`/`update.sh` 必须加 `--pre` 参数（如 `update.bat --pre` 或 `./update.sh --pre`），正式版不需要
