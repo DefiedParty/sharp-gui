@@ -19,6 +19,7 @@ export const useJoystick = ({ viewerRef }: UseJoystickProps) => {
         deltaY: 0,
         maxRadius: 35, // Max movement radius
         moveSpeed: 0.03,
+        touchId: -1, // Track specific touch finger identifier
     });
 
     const animationRef = useRef<number | null>(null);
@@ -38,8 +39,7 @@ export const useJoystick = ({ viewerRef }: UseJoystickProps) => {
         }
 
         const camera = viewer.camera;
-        const controls = viewer.cameraControls || viewer.controls;
-        // controls can be null if not initialized
+        const controls = viewer.controls;
         if (!camera) return;
 
         const { deltaX, deltaY, maxRadius, moveSpeed } = joystickState.current;
@@ -97,15 +97,32 @@ export const useJoystick = ({ viewerRef }: UseJoystickProps) => {
     }, [isActive, updateMovement]);
 
 
-    // Handlers
+    // Find the specific touch that belongs to the joystick by identifier
+    const findTouch = (touches: TouchList, id: number): Touch | null => {
+        for (let i = 0; i < touches.length; i++) {
+            if (touches[i].identifier === id) return touches[i];
+        }
+        return null;
+    };
+
+    // Handlers — track specific touch identifier to avoid multi-touch conflicts
     const handleTouchStart = (e: React.TouchEvent) => {
-        e.preventDefault(); // Prevent scrolling
+        e.preventDefault();
         if (!containerRef.current) return;
-        
+        // Only claim the first finger touching the joystick
+        if (joystickState.current.touchId >= 0) return;
+
+        // Use the native event to get changedTouches (the finger that just arrived)
+        const nativeEvent = (e as unknown as { nativeEvent?: TouchEvent }).nativeEvent;
+        const newTouch = nativeEvent?.changedTouches?.[0] ?? (e.touches?.[0] as unknown as Touch);
+        if (!newTouch) return;
+
+        joystickState.current.touchId = newTouch.identifier;
+
         const rect = containerRef.current.getBoundingClientRect();
         joystickState.current.centerX = rect.left + rect.width / 2;
         joystickState.current.centerY = rect.top + rect.height / 2;
-        
+
         setIsActive(true);
     };
 
@@ -113,7 +130,10 @@ export const useJoystick = ({ viewerRef }: UseJoystickProps) => {
         e.preventDefault();
         if (!isActiveRef.current) return;
 
-        const touch = e.touches[0];
+        // Only follow our tracked finger
+        const touch = findTouch(e.touches as unknown as TouchList, joystickState.current.touchId);
+        if (!touch) return;
+
         let dx = touch.clientX - joystickState.current.centerX;
         let dy = touch.clientY - joystickState.current.centerY;
 
@@ -136,11 +156,22 @@ export const useJoystick = ({ viewerRef }: UseJoystickProps) => {
 
     const handleTouchEnd = (e: React.TouchEvent) => {
         e.preventDefault();
+        // Only reset if our tracked finger was lifted
+        const nativeEvent = (e as unknown as { nativeEvent?: TouchEvent }).nativeEvent;
+        const changed = nativeEvent?.changedTouches;
+        if (changed) {
+            let found = false;
+            for (let i = 0; i < changed.length; i++) {
+                if (changed[i].identifier === joystickState.current.touchId) { found = true; break; }
+            }
+            if (!found) return;
+        }
         resetJoystick();
     };
 
     const resetJoystick = () => {
         setIsActive(false);
+        joystickState.current.touchId = -1;
         joystickState.current.deltaX = 0;
         joystickState.current.deltaY = 0;
         if (stickRef.current) {

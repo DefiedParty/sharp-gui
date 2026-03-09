@@ -22,7 +22,7 @@ interface AppState {
   galleryItems: GalleryItem[];
   currentModelId: string | null;
   currentModelUrl: string | null;
-  currentModelFormat: 'ply' | 'splat' | null; // Format hint for blob URLs
+  currentModelFormat: 'ply' | 'splat' | 'spz' | null; // Format hint for blob URLs
   
   // Task Queue
   tasks: Task[];
@@ -51,7 +51,7 @@ interface AppState {
   setBootError: (error: string) => void;
   
   setGalleryItems: (items: GalleryItem[]) => void;
-  setCurrentModel: (id: string | null, url: string | null, format?: 'ply' | 'splat' | null) => void;
+  setCurrentModel: (id: string | null, url: string | null, format?: 'ply' | 'splat' | 'spz' | null) => void;
   
   setTasks: (tasks: Task[], hasActive: boolean) => void;
   

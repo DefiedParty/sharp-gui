@@ -120,7 +120,7 @@ export const useGyroscope = ({ viewerRef }: UseGyroscopeProps) => {
             const state = gyroState.current;
             
             // Allow controls to update first if needed, though we interrupt them essentially
-            const c = viewer?.cameraControls || viewer?.controls;
+            const c = viewer?.controls;
 
             if (c && c.object) {
                 // Smooth interpolation

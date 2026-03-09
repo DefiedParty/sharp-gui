@@ -7,7 +7,7 @@ import type { CameraConfig } from '@/types';
 export const DEFAULT_CAMERA_CONFIG: CameraConfig = {
   // Initial position
   initialPosition: [0, 0, 1],
-  cameraUp: [0, -1, 0], // Y-axis down (Gaussian Splats convention)
+  cameraUp: [0, 1, 0], // Y-up (standard Three.js / Spark convention)
 
   // Mouse button mapping
   mouseButtons: {
@@ -80,6 +80,5 @@ export const DEFAULT_CAMERA_CONFIG: CameraConfig = {
   far: 1000,
 
   // Model
-  modelScale: [2.0, 2.0, 2.0],
-  modelRotation: [0, 1, 0, 0],
+  modelScale: 2.0,
 };

@@ -30,10 +30,36 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
         const container = containerRef.current;
         if (!container) return;
 
+        // ── Pointer capture + stopPropagation on ALL pointer events ──────
+        // OrbitControls registers `pointermove` on `document` (not just canvas).
+        // When user touches the joystick, the browser fires pointer events that
+        // bubble up to document → OrbitControls' handler receives them → calls
+        // handleTouchMoveRotate with the joystick finger's coordinates → camera
+        // jumps. Fix: capture the pointer AND stop propagation on pointerdown,
+        // pointermove, AND pointerup so none of these events reach document.
+        const handlePointerDown = (e: PointerEvent) => {
+            e.stopPropagation();
+            try { container.setPointerCapture(e.pointerId); } catch { /* ok */ }
+        };
+        const handlePointerMove = (e: PointerEvent) => {
+            e.stopPropagation();
+        };
+        const handlePointerUp = (e: PointerEvent) => {
+            e.stopPropagation();
+            try { container.releasePointerCapture(e.pointerId); } catch { /* ok */ }
+        };
+
+        container.addEventListener('pointerdown', handlePointerDown);
+        container.addEventListener('pointermove', handlePointerMove);
+        container.addEventListener('pointerup', handlePointerUp);
+        container.addEventListener('pointercancel', handlePointerUp);
+
         const handleTouchStart = (e: TouchEvent) => {
             e.preventDefault();
+            e.stopPropagation();
             const syntheticEvent = { 
-                preventDefault: () => {}, 
+                preventDefault: () => {},
+                touches: e.touches,
                 nativeEvent: e 
             } as unknown as React.TouchEvent;
             handlers.onTouchStart(syntheticEvent);
@@ -41,24 +67,7 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
 
         const handleTouchMove = (e: TouchEvent) => {
             e.preventDefault();
-            const touch = e.touches[0];
-            const rect = container.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            
-            const maxRadius = 35;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > maxRadius) {
-                dx = (dx / dist) * maxRadius;
-                dy = (dy / dist) * maxRadius;
-            }
-
-            if (stickRef.current) {
-                stickRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
-            }
-
+            e.stopPropagation();
             const syntheticEvent = { 
                 preventDefault: () => {}, 
                 touches: e.touches,
@@ -69,8 +78,9 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
 
         const handleTouchEnd = (e: TouchEvent) => {
             e.preventDefault();
+            e.stopPropagation();
             const syntheticEvent = { 
-                preventDefault: () => {}, 
+                preventDefault: () => {},
                 nativeEvent: e 
             } as unknown as React.TouchEvent;
             handlers.onTouchEnd(syntheticEvent);
@@ -82,6 +92,10 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
         container.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
         return () => {
+            container.removeEventListener('pointerdown', handlePointerDown);
+            container.removeEventListener('pointermove', handlePointerMove);
+            container.removeEventListener('pointerup', handlePointerUp);
+            container.removeEventListener('pointercancel', handlePointerUp);
             container.removeEventListener('touchstart', handleTouchStart);
             container.removeEventListener('touchmove', handleTouchMove);
             container.removeEventListener('touchend', handleTouchEnd);

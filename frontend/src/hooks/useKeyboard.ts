@@ -16,7 +16,7 @@ interface KeyState {
   [key: string]: boolean;
 }
 
-export const useKeyboard = (viewerRef: React.MutableRefObject<any>) => {
+export const useKeyboard = (viewerRef: React.MutableRefObject<any>, resetCameraFn?: () => void) => {
   const keyState = useRef<KeyState>({
     w: false, a: false, s: false, d: false, q: false, e: false,
     shift: false, ctrl: false
@@ -24,6 +24,12 @@ export const useKeyboard = (viewerRef: React.MutableRefObject<any>) => {
   
   const animationFrameId = useRef<number | null>(null);
   const [speedMode, setSpeedMode] = useState<SpeedMode>(null);
+  const resetCameraRef = useRef(resetCameraFn);
+
+  // Keep resetCameraRef up to date
+  useEffect(() => {
+    resetCameraRef.current = resetCameraFn;
+  }, [resetCameraFn]);
 
   const updateMovementRef = useRef<() => void>(undefined);
 
@@ -32,7 +38,7 @@ export const useKeyboard = (viewerRef: React.MutableRefObject<any>) => {
     if (!viewer) return;
 
     const camera = viewer.camera;
-    const controls = viewer.cameraControls || viewer.controls;
+    const controls = viewer.controls;
     
     if (!camera || !controls) return;
 
@@ -104,6 +110,12 @@ export const useKeyboard = (viewerRef: React.MutableRefObject<any>) => {
         }
       }
 
+      // R key → Reset camera (same as the Reset button)
+      if (key === 'r') {
+        e.preventDefault();
+        resetCameraRef.current?.();
+      }
+
       if (e.key === 'Shift') {
         keyState.current.shift = true;
         setSpeedMode('fast');
@@ -157,7 +169,7 @@ export const useKeyboard = (viewerRef: React.MutableRefObject<any>) => {
     const updateZoomSpeed = (shift: boolean, ctrl: boolean) => {
        const viewer = viewerRef.current;
        if (!viewer) return;
-       const controls = viewer.cameraControls || viewer.controls;
+       const controls = viewer.controls;
        if (!controls) return;
 
        if (shift) {

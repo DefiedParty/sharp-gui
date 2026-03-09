@@ -100,13 +100,15 @@ function App() {
     const name = file.name.toLowerCase()
     
     // Check for supported model formats and extract format
-    let format: 'ply' | 'splat' | null = null
+    let format: 'ply' | 'splat' | 'spz' | null = null
     if (name.endsWith('.ply')) {
       format = 'ply'
     } else if (name.endsWith('.splat')) {
       format = 'splat'
+    } else if (name.endsWith('.spz')) {
+      format = 'spz'
     } else {
-      alert('Unsupported format. Please drop .ply or .splat files.')
+      alert('Unsupported format. Please drop .ply, .splat or .spz files.')
       return
     }
     

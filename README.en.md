@@ -55,9 +55,9 @@ No need to install apps on every device. Run Sharp GUI on one computer, and any 
 | ------------------------ | ------------------------------------------------------------------------------------------------- |
 | **📸 Image to 3D**       | Upload any image, AI generates 3D Gaussian Splatting model                                        |
 | **🖼️ Batch Processing**  | Multi-select/drag-drop upload with smart queue scheduling                                         |
-| **👁️ Real-time Preview** | High-performance viewer with Three.js + Gaussian Splats 3D                                        |
-| **📱 Mobile Optimized**  | Perfect adaptation for phones/tablets with gyroscope support                                      |
-| **🥽 VR Preview**        | WebXR VR mode support, immersive experience on Quest/Vision Pro with controller joystick movement |
+| **👁️ Real-time Preview** | High-performance WASM-accelerated viewer with Three.js + Spark, click-to-focus                    |
+| **📱 Mobile Optimized**  | Perfect adaptation for phones/tablets with gyroscope, virtual joystick, and touch gestures         |
+| **🥽 VR/AR Preview**     | WebXR VR mode + AR Passthrough mode, immersive experience on Quest 3/Pro with controller/touch    |
 | **📤 One-Click Share**   | Export as standalone HTML, viewable without server                                                |
 | **🎮 GPU Acceleration** | Auto-detect NVIDIA GPU, smart CUDA version selection (cu118/cu124) for faster inference           |
 | **🔄 Auto-Update**       | One-click update to latest version, supports pre-release channel                                  |
@@ -93,7 +93,8 @@ Built with Apple Human Interface Guidelines for a premium user experience:
 - **🧹 Auto Cleanup** - Completed tasks auto-cleaned after 1 hour
 - **⚙️ Configurable Paths** - Custom workspace folder
 - **🖥️ Fullscreen Mode** - Immersive 3D preview
-- **🥽 VR Mode** - WebXR-based VR preview, supports Quest/Vision Pro and other headsets with controller joystick movement
+- **🥽 VR/AR Mode** - WebXR VR preview + AR Passthrough mode, supports Quest 3/Pro and other headsets
+- **🎯 Click-to-Focus** - WASM-accelerated raycasting, click anywhere on the model to smoothly focus with GPU-powered focus ring animation
 - **🌐 Internationalization** - Chinese/English bilingual UI, auto-detects browser language, manual toggle
 
 ---
@@ -326,12 +327,14 @@ rm -rf sharp-gui/
 | Reset      | Tap "Reset" button      | Restore initial view               |
 | Fullscreen | Tap "Fullscreen" button | Immersive preview                  |
 | VR Preview | Tap "VR" button         | Enter VR mode (requires VR device) |
+| AR Preview | Tap "AR" button         | AR Passthrough overlay 3D model    |
+| Reset      | Press "R" key           | Quick reset camera to initial view |
 
 ### Export & Share
 
 Click **Share** button to generate a standalone HTML file:
 
-- 📦 Complete 3D viewer included (Three.js + Gaussian Splats 3D)
+- 📦 Complete 3D viewer included (Three.js + Spark)
 - 🌐 No server needed, double-click to open in browser
 - 📉 Optimized size: PLY → Splat format, 43% smaller
 - 🔒 Includes disclaimer about content responsibility
@@ -397,7 +400,7 @@ sharp-gui/
 │   └── 📄 update.py          # Auto-update core logic
 ├── 📁 frontend/              # React modern frontend (v1.0.0+)
 ├── 📁 templates/             # Original single-file frontend (Legacy)
-├── 📁 static/lib/            # Three.js + Gaussian Splats 3D
+├── 📁 static/lib/            # Three.js + Gaussian Splats 3D (Legacy)
 ├── 📁 ml-sharp/              # (after install) Apple ML-Sharp core
 ├── 📁 inputs/                # Input images
 └── 📁 outputs/               # Output models (.ply)
@@ -414,7 +417,7 @@ frontend/
 │   │   ├── 📁 gallery/       # Gallery components (GalleryList, GalleryItem)
 │   │   ├── 📁 layout/        # Layout components (Sidebar, ControlsBar, TaskQueue, Settings)
 │   │   └── 📁 viewer/        # Viewer components (ViewerCanvas, VirtualJoystick, GyroIndicator)
-│   ├── 📁 hooks/             # Custom Hooks (useViewer, useGyroscope, useKeyboard)
+│   ├── 📁 hooks/             # Custom Hooks (useViewer, useXR, useGyroscope, useKeyboard)
 │   ├── 📁 i18n/              # Internationalization (zh.json, en.json)
 │   ├── 📁 store/             # Zustand state management
 │   ├── 📁 styles/            # Global styles (variables, animations)
@@ -434,13 +437,13 @@ frontend/
 | **Styling**      | CSS Modules + Apple Glass Morphism                  |
 | **Backend**      | Python 3.10+, Flask, multi-threaded task queue      |
 | **AI Engine**    | Apple ML-Sharp (PyTorch, gsplat)                    |
-| **3D Rendering** | Three.js + Gaussian Splats 3D                       |
+| **3D Rendering** | Three.js + Spark (WASM-accelerated Gaussian Splatting) |
 
 ### Performance Optimizations
 
 | Optimization              | Description                                                                      |
 | ------------------------- | -------------------------------------------------------------------------------- |
-| **Code Splitting**        | Vite manualChunks: three.js (489KB), gaussian-splats (249KB), react-vendor (4KB) |
+| **Code Splitting**        | Vite manualChunks: three.js (~493KB), spark (~487KB), react-vendor (4KB)         |
 | **Thumbnail System**      | Auto-generated 200px JPEG thumbnails, saves bandwidth                            |
 | **Smart Polling**         | Active 2s polling, idle 10s, saves resources                                     |
 | **Format Conversion**     | PLY → Splat export conversion, 43% smaller file size                             |
@@ -488,7 +491,8 @@ npm run build
 ## 🤝 Acknowledgements
 
 - [Apple ML-Sharp](https://github.com/apple/ml-sharp) - Core 3D generation model
-- [Gaussian Splats 3D](https://github.com/mkkellogg/GaussianSplats3D) - Three.js Gaussian Splatting renderer
+- [Spark](https://github.com/nickthetimid/spark) - WASM-accelerated Gaussian Splatting rendering engine
+- [Gaussian Splats 3D](https://github.com/mkkellogg/GaussianSplats3D) - Original Three.js Gaussian Splatting renderer (Legacy version)
 - [antimatter15/splat](https://github.com/antimatter15/splat) - Splat format conversion reference
 
 ---

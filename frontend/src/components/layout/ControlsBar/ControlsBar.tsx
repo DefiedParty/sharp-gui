@@ -160,14 +160,25 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
                         <span>{t("controls_fullscreen")}</span>
                     </button>
 
-                    {/* VR Button - Only show if VR is supported */}
-                    {viewerHook.vr.isVRSupported && (
+                    {/* VR Button */}
+                    {viewerHook.xr.isVRSupported && (
                         <button 
-                            className={`${styles.controlBtn} ${styles.vrBtn} ${viewerHook.vr.isInVR ? styles.active : ''}`}
-                            onClick={viewerHook.vr.toggleVR}
+                            className={`${styles.controlBtn} ${styles.vrBtn} ${viewerHook.xr.currentMode === 'vr' ? styles.active : ''}`}
+                            onClick={viewerHook.xr.isInXR ? viewerHook.xr.exitXR : viewerHook.xr.enterVR}
                         >
                             <Icons.VRIcon />
-                            <span>{viewerHook.vr.isInVR ? t("controls_exit_vr") : t("controls_vr")}</span>
+                            <span>{viewerHook.xr.currentMode === 'vr' ? t("controls_exit_vr") : t("controls_vr")}</span>
+                        </button>
+                    )}
+
+                    {/* AR Button */}
+                    {viewerHook.xr.isARSupported && (
+                        <button 
+                            className={`${styles.controlBtn} ${styles.arBtn} ${viewerHook.xr.currentMode === 'ar' ? styles.active : ''}`}
+                            onClick={viewerHook.xr.isInXR ? viewerHook.xr.exitXR : viewerHook.xr.enterAR}
+                        >
+                            <Icons.ARIcon />
+                            <span>{viewerHook.xr.currentMode === 'ar' ? t("controls_exit_ar") : t("controls_ar")}</span>
                         </button>
                     )}
 

@@ -77,8 +77,7 @@ export interface CameraConfig {
   far: number;
 
   // Model
-  modelScale: [number, number, number];
-  modelRotation: [number, number, number, number];
+  modelScale: number;
 }
 
 // Helper to get THREE.MOUSE constant

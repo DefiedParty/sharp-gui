@@ -256,3 +256,14 @@ export function VRIcon(props: IconProps) {
   );
 }
 
+// AR Passthrough Icon
+export function ARIcon(props: IconProps) {
+  return (
+    <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 17l10 5 10-5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 12l10 5 10-5" />
+    </svg>
+  );
+}
+

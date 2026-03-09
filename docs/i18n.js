@@ -54,7 +54,7 @@ const i18n = {
       '数据完全本地化，<span class="text-premium">无限制内容生成</span>，一切由你掌控。',
     "features.performance.title": "高性能渲染",
     "features.performance.desc":
-      "基于 Three.js + Gaussian Splats，体积减少 43%，加载飞快。",
+      "基于 Three.js + Spark (WASM 加速)，体积减少 43%，点击聚焦，加载飞快。",
     "features.control.title": "全模态控制",
     "features.control.desc":
       "不仅支持键盘 WASD 漫游，更支持移动端陀螺仪体感操控，身临其境。",
@@ -94,7 +94,7 @@ const i18n = {
     "arch.metric.compression": "体积压缩",
     "arch.metric.inference": "单图推理",
     "arch.metric.render": "流畅渲染",
-    "arch.metric.vr": "VR 支持",
+    "arch.metric.vr": "VR/AR 支持",
 
     // === Install Section ===
     "install.title": "🚀 立即开始",
@@ -161,7 +161,7 @@ const i18n = {
       'Completely local data, <span class="text-premium">unrestricted content generation</span>, you\'re in control.',
     "features.performance.title": "High Performance",
     "features.performance.desc":
-      "Based on Three.js + Gaussian Splats, 43% size reduction, blazing fast.",
+      "Based on Three.js + Spark (WASM-accelerated), 43% size reduction, click-to-focus, blazing fast.",
     "features.control.title": "Multi-Modal Control",
     "features.control.desc":
       "Not just WASD keyboard navigation, but also mobile gyroscope for immersive control.",
@@ -202,7 +202,7 @@ const i18n = {
     "arch.metric.compression": "Size Reduction",
     "arch.metric.inference": "Single Image",
     "arch.metric.render": "Smooth Render",
-    "arch.metric.vr": "VR Support",
+    "arch.metric.vr": "VR/AR Support",
 
     // === Install Section ===
     "install.title": "🚀 Get Started",

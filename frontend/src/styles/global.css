@@ -29,7 +29,8 @@ body {
     background-color: var(--bg-color);
     color: var(--text-primary);
     display: flex;
-    height: 100vh;
+    height: 100vh;       /* fallback for old browsers */
+    height: 100dvh;      /* dvh accounts for Chrome mobile address bar */
 }
 
 #root {

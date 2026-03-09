@@ -48,7 +48,7 @@ export default function MyButton() { ... }     // 禁止 default export
 export const MyButton: React.FC = () => { ... } // 新代码不用 React.FC
 ```
 
-> **⚠️ 历史遗留**：`ViewerCanvas`、`Settings`、`ControlsBar`、`ParticleBackground`、`TaskQueue` 等组件使用了 `React.FC`；`ControlsBar/`、`Help/`、`ViewerCanvas/` 缺少 `index.ts`。现有代码不强制修改。
+> **⚠️ 历史遗留**：`ViewerCanvas`、`Settings`、`ControlsBar`、`ParticleBackground`、`TaskQueue` 等组件使用了 `React.FC`；`ControlsBar/`、`Help/`、`ViewerCanvas/` 缺少 `index.ts`。`useVR.ts` 已重构为 `useXR.ts`（统一 VR + AR）。现有代码不强制修改。
 
 ### Props 定义
 
@@ -188,7 +188,7 @@ export const useMyHook = (param: ParamType) => {
 | Viewer 操作 | 接收 `viewerRef` 参数操作 3D viewer | `useKeyboard(viewerRef)` |
 | 动画循环 | 使用 `requestAnimationFrame` + `useRef` | `useGyroscope`, `useJoystick` |
 | 状态引用 | 使用 `useRef` 管理不触发重渲染的状态 | 各 3D 相关 hook |
-| 组合模式 | 主 hook 内部调用子 hook | `useViewer` 组合 `useKeyboard` + `useGyroscope` + `useJoystick` + `useVR` |
+| 组合模式 | 主 hook 内部调用子 hook | `useViewer` 组合 `useKeyboard` + `useGyroscope` + `useJoystick` + `useXR` |
 
 ### 位置
 
@@ -294,9 +294,86 @@ Vite 配置了 `manualChunks` 代码分割：
 
 | Chunk | 包含 | 大小参考 |
 |-------|------|----------|
-| `three` | three.js 核心 | ~489KB |
-| `gaussian-splats` | @mkkellogg/gaussian-splats-3d | ~249KB |
+| `three` | three.js 核心 | ~493KB |
+| `spark` | @sparkjsdev/spark | ~487KB |
 | `react-vendor` | react, react-dom | ~4KB |
 | `utils` | i18next, zustand | ~20KB |
 
 新增大型三方依赖时，应在 `vite.config.ts` 的 `manualChunks` 中配置独立 chunk。
+
+---
+
+## 3D 渲染引擎
+
+### Spark（替代 Gaussian Splats 3D）
+
+项目已从 `@mkkellogg/gaussian-splats-3d`（已停止维护）迁移至 `@sparkjsdev/spark` v0.1.10：
+
+| 特性 | 说明 |
+|------|------|
+| **SplatMesh** | 继承 `THREE.Object3D`，可直接 `scene.add(splatMesh)` |
+| **SparkRenderer** | 继承 `THREE.Mesh`，作为渲染管线的一部分加入场景 |
+| **SplatLoader** | 异步加载 `.ply` / `.splat` 文件，支持 `onProgress` 回调 |
+| **WASM Raycaster** | 内置 WASM 加速射线检测，用于点击聚焦（`splatMesh.raycast()`） |
+
+### 关键代码模式
+
+```typescript
+// 初始化 Spark 渲染器
+const sparkRenderer = new SparkRenderer(renderer);
+const splatMesh = new SplatMesh();
+scene.add(splatMesh);
+scene.add(sparkRenderer); // 必须加入场景
+
+// 加载模型
+const loader = new SplatLoader(renderer);
+const data = await loader.loadAsync([url], (progress) => { ... });
+splatMesh.disposeSplats();
+splatMesh.addSplats(data);
+
+// 点击聚焦（WASM Raycaster）
+const raycaster = new THREE.Raycaster();
+const intersects: THREE.Intersection[] = [];
+splatMesh.raycast(raycaster, intersects);
+```
+
+### 注意事项
+
+- **模型朝向**：加载后需设置 `splatMesh.rotation.x = Math.PI` 纠正模型上下颠倒
+- **缩放**：通过 `splatMesh.scale.setScalar(modelScale)` 控制（默认 2.0）
+- **清理**：切换模型时先 `splatMesh.disposeSplats()`，组件销毁时 `sparkRenderer.dispose()` + `splatMesh.dispose()`
+- **listenToKeyEvents**：不可调用 `OrbitControls.listenToKeyEvents()`（Spark 注册的全局 listener 与之冲突）
+
+---
+
+## WebXR（VR / AR）
+
+### 架构
+
+XR 功能由 `useXR` hook 统一管理（替代了原来的 `useVR`），支持双模式：
+
+| 模式 | WebXR Session | 特性 |
+|------|--------------|------|
+| **VR** | `immersive-vr` | Camera Rig 漫游、手柄摇杆控制、A/X 键重置 |
+| **AR** | `immersive-ar` | 透明背景 Passthrough、触摸旋转/升降、双指缩放 |
+
+### Camera Rig 模式
+
+使用 `THREE.Group` 作为相机父级（Camera Rig），移动 rig 而非直接操作相机：
+
+```typescript
+const rig = new THREE.Group();
+rig.add(camera);
+scene.add(rig);
+
+// 移动：修改 rig.position
+// 转向：修改 rig.rotation.y
+```
+
+### 关键实现细节
+
+- **高度校准**：`local-floor` 参考空间将头部置于 ~1.6m，需 `rig.position.y = -xrCam.position.y` 使模型在眼前
+- **Home 位置**：`rigHomeRef` 保存校准后的位置，A/X 重置时恢复到校准位置而非 (0,0,0)
+- **Session 结束恢复**：需完整恢复 camera (position, up, rotation, fov, near, far)、renderer (viewport, pixelRatio)、controls (target, update)
+- **AR 透明背景**：进入 AR 时 `scene.background = null` + `renderer.setClearColor(0,0,0,0)`
+- **AR 缩放恢复**：退出 AR 时需恢复 `splatMesh.scale` 到原始值

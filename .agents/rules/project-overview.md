@@ -8,7 +8,7 @@ Sharp GUI 采用 **前后端分离 + 双前端模式** 架构：
 ┌─────────────────────────────────────────────────┐
 │  浏览器（桌面 / 移动端 / VR）                      │
 │  ┌───────────────────┬────────────────────────┐  │
-│  │  React 19 前端     │  Three.js + GS3D 渲染  │  │
+│  │  React 19 前端     │  Three.js + Spark 渲染  │  │
 │  │  (Zustand + i18n) │  (WebGL / WebXR)       │  │
 │  └────────┬──────────┴─────────┬──────────────┘  │
 │           │ fetch              │ .ply/.splat      │
@@ -64,7 +64,7 @@ sharp-gui/
 │   │   │   ├── gallery/      #     图库：GalleryItem, GalleryList
 │   │   │   ├── layout/       #     布局：Sidebar, ControlsBar, Help, Settings, TaskQueue
 │   │   │   └── viewer/       #     查看器：ViewerCanvas, GyroIndicator, VirtualJoystick, SpeedTooltip
-│   │   ├── hooks/            #   自定义 Hooks（useViewer, useKeyboard, useGyroscope 等）
+│   │   ├── hooks/            #   自定义 Hooks（useViewer, useXR, useKeyboard, useGyroscope, useJoystick 等）
 │   │   ├── i18n/             #   国际化（index.ts + en.json + zh.json）
 │   │   ├── store/            #   Zustand 状态管理（useAppStore.ts）
 │   │   ├── styles/           #   全局样式（variables.css, animations.css, global.css）
@@ -78,7 +78,7 @@ sharp-gui/
 │   ├── index.html            #   完整 SPA（4556行）
 │   └── share_template.html   #   导出分享模板
 │
-├── static/lib/               # 预打包的 Three.js + GaussianSplats3D（不可修改）
+├── static/lib/               # 预打包的 Three.js + GaussianSplats3D（Legacy 版本使用，不可修改）
 ├── tools/                    # 工具脚本
 │   ├── detect_cuda.py        #   CUDA 版本检测
 │   ├── download_model.py     #   模型下载（多源 + SHA256 校验）
@@ -100,7 +100,8 @@ sharp-gui/
 | react / react-dom | ^19.2.0 | UI 框架 |
 | zustand | ^5.0.10 | 状态管理 |
 | three | ^0.182.0 | 3D 渲染引擎 |
-| @mkkellogg/gaussian-splats-3d | ^0.4.7 | 高斯溅射渲染器 |
+| @mkkellogg/gaussian-splats-3d | - | 已移除，替换为 Spark |
+| @sparkjsdev/spark | ^0.1.10 | WASM 加速高斯溅射渲染器 |
 | i18next | ^25.8.0 | 国际化核心 |
 | react-i18next | ^16.5.3 | React 绑定 |
 | typescript | ~5.9.3 | 类型系统 |
@@ -131,3 +132,22 @@ sharp-gui/
 - 默认端口：**5050**
 - HTTPS：自动检测项目根目录下 `cert.pem` / `key.pem`
 - 开发代理：Vite dev server 将 `/api` 和 `/files` 代理到 `localhost:5050`
+
+## 3D 渲染引擎迁移说明
+
+项目 3D 渲染层已从 `@mkkellogg/gaussian-splats-3d`（已停止维护）迁移至 `@sparkjsdev/spark` v0.1.10：
+
+- **React 前端**（`frontend/`）：使用 Spark（SplatMesh + SparkRenderer + SplatLoader + WASM Raycaster）
+- **Legacy 前端**（`templates/` + `static/lib/`）：仍使用预打包的 GaussianSplats3D，不修改
+- **导出分享**（`share_template.html`）：仍使用 static/lib 中的预打包版本
+
+## WebXR 支持
+
+React 前端支持 WebXR 双模式：
+
+| 模式 | Session Type | 适用设备 |
+|------|-------------|---------|
+| **VR** | `immersive-vr` | Quest 3/Pro、Vision Pro |
+| **AR Passthrough** | `immersive-ar` | Quest 3/Pro（全彩透视）、Android Chrome |
+
+核心实现在 `hooks/useXR.ts`，采用 Camera Rig 模式 + 高度校准。

@@ -152,6 +152,18 @@
     font-weight: 600;
 }
 
+/* AR Button */
+.arBtn {
+    transition: all var(--transition-normal);
+}
+
+.arBtn.active {
+    background: white;
+    color: var(--success-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    font-weight: 600;
+}
+
 /* Hide the built-in VR button from GaussianSplats3D library */
 :global(#VRButton),
 :global(.VRButton),

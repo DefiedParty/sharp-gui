@@ -54,7 +54,7 @@ export default defineConfig({
         manualChunks: {
           // 3D 渲染库单独分包
           'three': ['three'],
-          'gaussian-splats': ['@mkkellogg/gaussian-splats-3d'],
+          'spark': ['@sparkjsdev/spark'],
           // React 核心
           'react-vendor': ['react', 'react-dom'],
           // 状态管理 + i18n
