@@ -18,7 +18,6 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
         currentModelId,
         setLoading,
         setLoadingProgress,
-        // toggleGyro is now handled by viewerHook for permissions
     } = useAppStore();
     
     // UI state for collapse

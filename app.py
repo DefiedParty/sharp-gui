@@ -152,6 +152,129 @@ def ply_to_splat(ply_path):
     
     return buffer.getvalue()
 
+
+import struct
+import math
+
+# SPZ 常量 (与 @sparkjsdev/spark SpzReader / Niantic SPZ v3 完全对齐)
+SPZ_MAGIC = 1347635022    # 0x5053474E — 字节顺序 4E 47 53 50
+SPZ_VERSION = 3
+SQRT1_2 = 1.0 / math.sqrt(2.0)
+QUAT_VALUEMASK = (1 << 9) - 1  # 511
+
+
+def ply_to_spz(ply_path, spz_path=None, fractional_bits=11):
+    """将 PLY 高斯泼溅模型转换为 SPZ 格式 (Niantic v3)
+
+    数据布局 (gzip 压缩后):
+      Header 16B | Centers N×9B | Alpha N×1B | RGB N×3B | Scales N×3B | Quats N×4B
+    """
+    plydata = PlyData.read(ply_path)
+    vert = plydata["vertex"].data
+    n = len(vert)
+
+    if spz_path is None:
+        spz_path = os.path.splitext(ply_path)[0] + '.spz'
+
+    sh_degree = 0
+    scale_factor = 1 << fractional_bits
+    SH_C0 = 0.28209479177387814
+
+    # ==================== Header (16 bytes) ====================
+    header = struct.pack('<IIIBBBB',
+        SPZ_MAGIC,          # magic  (uint32 LE)
+        SPZ_VERSION,        # version (uint32 LE)
+        n,                  # numPoints (uint32 LE)
+        sh_degree,          # shDegree (uint8)
+        fractional_bits,    # fractionalBits (uint8)
+        0,                  # flags (uint8)
+        0,                  # reserved (uint8)
+    )
+
+    # ==================== Centers: N × 9 bytes ====================
+    # 每个 splat: [x_lo, x_mi, x_hi, y_lo, y_mi, y_hi, z_lo, z_mi, z_hi]
+    xyz = np.column_stack([
+        vert['x'].astype(np.float64),
+        vert['y'].astype(np.float64),
+        vert['z'].astype(np.float64),
+    ])
+    quantized = np.round(xyz * scale_factor).astype(np.int32)
+    quantized = np.clip(quantized, -(1 << 23) + 1, (1 << 23) - 1)
+    unsigned = quantized.astype(np.uint32) & 0xFFFFFF
+    b0 = (unsigned & 0xFF).astype(np.uint8)            # (n, 3)
+    b1 = ((unsigned >> 8) & 0xFF).astype(np.uint8)
+    b2 = ((unsigned >> 16) & 0xFF).astype(np.uint8)
+    # 交错: [x0_b0, x0_b1, x0_b2, y0_b0, y0_b1, y0_b2, z0_b0, z0_b1, z0_b2, ...]
+    centers = np.column_stack([
+        b0[:, 0], b1[:, 0], b2[:, 0],
+        b0[:, 1], b1[:, 1], b2[:, 1],
+        b0[:, 2], b1[:, 2], b2[:, 2],
+    ]).flatten().tobytes()
+
+    # ==================== Alpha: N × 1 byte ====================
+    logits = vert['opacity'].astype(np.float64)
+    alphas = 1.0 / (1.0 + np.exp(-np.clip(logits, -20, 20)))
+    alpha_bytes = np.round(alphas * 255).clip(0, 255).astype(np.uint8).tobytes()
+
+    # ==================== RGB: N × 3 bytes ====================
+    # SpzWriter.scaleRgb: byte = round(((color - 0.5) / (SH_C0 / 0.15) + 0.5) * 255)
+    colors = np.column_stack([
+        0.5 + SH_C0 * vert['f_dc_0'].astype(np.float64),
+        0.5 + SH_C0 * vert['f_dc_1'].astype(np.float64),
+        0.5 + SH_C0 * vert['f_dc_2'].astype(np.float64),
+    ])
+    rgb_scale = SH_C0 / 0.15
+    rgb_encoded = np.round(((colors - 0.5) / rgb_scale + 0.5) * 255).clip(0, 255).astype(np.uint8)
+    rgb_bytes = rgb_encoded.flatten().tobytes()  # 已交错 [r0,g0,b0,r1,g1,b1,...]
+
+    # ==================== Scales: N × 3 bytes ====================
+    # SpzWriter: byte = round((log(scale) + 10) * 16)
+    # PLY 存储 log-scale，直接使用
+    log_scales = np.column_stack([
+        vert['scale_0'].astype(np.float64),
+        vert['scale_1'].astype(np.float64),
+        vert['scale_2'].astype(np.float64),
+    ])
+    scale_encoded = np.round((log_scales + 10.0) * 16.0).clip(0, 255).astype(np.uint8)
+    scale_bytes = scale_encoded.flatten().tobytes()
+
+    # ==================== Quaternions: N × 4 bytes (v3 packed) ====================
+    # 顺序: [x, y, z, w] = [rot_1, rot_2, rot_3, rot_0]
+    quats = np.column_stack([
+        vert['rot_1'].astype(np.float64),
+        vert['rot_2'].astype(np.float64),
+        vert['rot_3'].astype(np.float64),
+        vert['rot_0'].astype(np.float64),
+    ])
+    norms = np.linalg.norm(quats, axis=1, keepdims=True)
+    norms[norms < 1e-10] = 1.0
+    quats /= norms
+
+    quat_packed = np.zeros(n, dtype=np.uint32)
+    for i in range(n):
+        q = quats[i]
+        il = int(np.argmax(np.abs(q)))
+        negate = 1 if q[il] < 0 else 0
+        comp = il
+        for j in range(4):
+            if j != il:
+                negbit = (1 if q[j] < 0 else 0) ^ negate
+                mag = int(QUAT_VALUEMASK * (abs(q[j]) / SQRT1_2) + 0.5)
+                mag = min(QUAT_VALUEMASK, mag)
+                comp = (comp << 10) | (negbit << 9) | mag
+        quat_packed[i] = comp & 0xFFFFFFFF
+    quat_bytes = quat_packed.astype('<u4').tobytes()
+
+    # ==================== 组装 & gzip ====================
+    raw = header + centers + alpha_bytes + rgb_bytes + scale_bytes + quat_bytes
+    compressed = gzip.compress(raw, compresslevel=6)
+
+    with open(spz_path, 'wb') as f:
+        f.write(compressed)
+
+    return spz_path
+
+
 # --- 后台任务队列系统 (线程安全版) ---
 task_queue = queue.Queue()
 task_status = {}
@@ -284,8 +407,9 @@ def worker():
                 name_without_ext = os.path.splitext(filename)[0]
                 expected_ply = os.path.join(output_folder, name_without_ext + ".ply")
                 
+                ply_exists = os.path.exists(expected_ply)
                 with task_lock:
-                    if os.path.exists(expected_ply):
+                    if ply_exists:
                         task_status[task_id]['status'] = 'completed'
                         task_status[task_id]['progress'] = 100
                         task_status[task_id]['stage'] = 'done'
@@ -294,6 +418,18 @@ def worker():
                         task_status[task_id]['status'] = 'failed'
                         task_status[task_id]['error'] = 'Output file not found after execution.'
                         print(f"❌ Task {task_id} failed: Output missing.")
+                
+                # 自动转换 PLY → SPZ (在锁外执行，不阻塞其他任务)
+                if ply_exists:
+                    try:
+                        spz_result = ply_to_spz(expected_ply)
+                        if spz_result:
+                            ply_size = os.path.getsize(expected_ply)
+                            spz_size = os.path.getsize(spz_result)
+                            ratio = 100 - spz_size * 100 // ply_size if ply_size > 0 else 0
+                            print(f"📦 SPZ converted: {ply_size/1024:.0f}KB → {spz_size/1024:.0f}KB ({ratio}% smaller)")
+                    except Exception as e:
+                        print(f"⚠️ SPZ auto-convert failed for {name_without_ext}: {e}")
             else:
                 stderr_output = ''.join(output_lines)
                 with task_lock:
@@ -395,6 +531,15 @@ def get_gallery():
             # 获取文件大小
             ply_size = os.path.getsize(ply_path)
             
+            # 检查 SPZ 文件是否存在
+            spz_filename = name_without_ext + '.spz'
+            spz_path = os.path.join(OUTPUT_FOLDER, spz_filename)
+            spz_rel_path = None
+            spz_size = None
+            if os.path.exists(spz_path):
+                spz_rel_path = os.path.relpath(spz_path, BASE_DIR)
+                spz_size = os.path.getsize(spz_path)
+            
             img_rel_path = None
             thumb_rel_path = None
             for ext in ['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.PNG']:
@@ -411,9 +556,11 @@ def get_gallery():
                 'id': name_without_ext,
                 'name': name_without_ext,
                 'model_url': f'/files/{ply_rel_path}',
+                'spz_url': f'/files/{spz_rel_path}' if spz_rel_path else None,
                 'image_url': f'/files/{img_rel_path}' if img_rel_path else None,
                 'thumb_url': f'/files/{thumb_rel_path}' if thumb_rel_path else (f'/files/{img_rel_path}' if img_rel_path else None),
-                'size': ply_size
+                'size': ply_size,
+                'spz_size': spz_size
             })
     return jsonify(items)
 
@@ -508,12 +655,22 @@ def cancel_task(task_id):
 
 @app.route('/api/delete/<item_id>', methods=['DELETE'])
 def delete_item(item_id):
-    """删除图库项目 (包括原图和模型)"""
+    """删除图库项目 (包括原图、PLY、SPZ 模型)"""
     try:
-        # 删除模型
+        # 删除 PLY 模型
         ply_path = os.path.join(OUTPUT_FOLDER, item_id + ".ply")
         if os.path.exists(ply_path):
             os.remove(ply_path)
+        
+        # 删除 SPZ 模型
+        spz_path = os.path.join(OUTPUT_FOLDER, item_id + ".spz")
+        if os.path.exists(spz_path):
+            os.remove(spz_path)
+        
+        # 删除缩略图
+        thumb_path = os.path.join(THUMBNAIL_FOLDER, item_id + '.jpg')
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
         
         # 删除原图 (尝试所有可能的扩展名)
         for ext in ['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.PNG']:
@@ -528,7 +685,21 @@ def delete_item(item_id):
 
 @app.route('/api/download/<item_id>')
 def download_model(item_id):
-    """下载模型文件"""
+    """下载模型文件，支持 ?format=spz|ply 参数"""
+    fmt = request.args.get('format', 'spz')
+    
+    # 优先尝试请求的格式
+    if fmt == 'spz':
+        spz_path = os.path.join(OUTPUT_FOLDER, item_id + ".spz")
+        if os.path.exists(spz_path):
+            return send_from_directory(
+                OUTPUT_FOLDER,
+                item_id + ".spz",
+                as_attachment=True,
+                download_name=f"{item_id}.spz"
+            )
+    
+    # 回退到 PLY
     ply_path = os.path.join(OUTPUT_FOLDER, item_id + ".ply")
     if not os.path.exists(ply_path):
         return jsonify({'error': 'File not found'}), 404
@@ -541,6 +712,50 @@ def download_model(item_id):
     )
 
 
+@app.route('/api/convert-all', methods=['POST'])
+def convert_all_to_spz():
+    """批量将所有现有 PLY 模型转换为 SPZ 格式 (仅本机可用)"""
+    if not is_local_request():
+        return jsonify({'error': 'Only available from localhost'}), 403
+    
+    if not os.path.exists(OUTPUT_FOLDER):
+        return jsonify({'success': True, 'converted': 0, 'skipped': 0, 'failed': 0})
+    
+    ply_files = [f for f in os.listdir(OUTPUT_FOLDER) if f.endswith('.ply')]
+    converted = 0
+    skipped = 0
+    failed = 0
+    
+    for ply_filename in ply_files:
+        name_without_ext = os.path.splitext(ply_filename)[0]
+        ply_path = os.path.join(OUTPUT_FOLDER, ply_filename)
+        spz_path = os.path.join(OUTPUT_FOLDER, name_without_ext + '.spz')
+        
+        # 跳过已有 SPZ 的
+        if os.path.exists(spz_path):
+            skipped += 1
+            continue
+        
+        try:
+            ply_to_spz(ply_path, spz_path)
+            ply_size = os.path.getsize(ply_path)
+            spz_size = os.path.getsize(spz_path)
+            ratio = 100 - spz_size * 100 // ply_size if ply_size > 0 else 0
+            print(f"📦 Converted {name_without_ext}: {ply_size/1024:.0f}KB → {spz_size/1024:.0f}KB ({ratio}% smaller)")
+            converted += 1
+        except Exception as e:
+            print(f"⚠️ Failed to convert {name_without_ext}: {e}")
+            failed += 1
+    
+    return jsonify({
+        'success': True,
+        'converted': converted,
+        'skipped': skipped,
+        'failed': failed,
+        'total': len(ply_files)
+    })
+
+
 @app.route('/files/<path:filename>')
 def serve_files(filename):
     return send_from_directory(BASE_DIR, filename)
@@ -548,14 +763,16 @@ def serve_files(filename):
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def settings():
-    """设置接口 - 仅本机可访问"""
+    """设置接口 - 仅本机可访问 (model_format 对所有客户端可读)"""
     is_local = is_local_request()
+    config = load_config()
     
     if request.method == 'GET':
-        # 返回当前设置和是否为本机访问
+        # model_format 对所有客户端可读（作为服务器默认偏好）
         return jsonify({
             'is_local': is_local,
             'workspace_folder': WORKSPACE_FOLDER if is_local else None,
+            'model_format': config.get('model_format', 'spz'),
             # 也返回实际路径供显示
             'input_folder': INPUT_FOLDER if is_local else None,
             'output_folder': OUTPUT_FOLDER if is_local else None
@@ -574,11 +791,21 @@ def settings():
             new_config.pop('input_folder', None)
             new_config.pop('output_folder', None)
         
+        # model_format 修改无需重启
+        if 'model_format' in data:
+            fmt = data['model_format']
+            if fmt in ('ply', 'spz'):
+                new_config['model_format'] = fmt
+        
         save_config(new_config)
+        
+        # 判断是否需要重启 (仅 workspace_folder 变更需要重启)
+        needs_restart = 'workspace_folder' in data
         
         return jsonify({
             'success': True,
-            'message': 'Settings saved. Restart server to apply changes.'
+            'needs_restart': needs_restart,
+            'message': 'Settings saved.' + (' Restart server to apply changes.' if needs_restart else '')
         })
 
 

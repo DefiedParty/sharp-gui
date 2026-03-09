@@ -12,7 +12,7 @@ interface GalleryListProps {
 
 export function GalleryList({ items, onSelectModel }: GalleryListProps) {
   const { t } = useTranslation();
-  const { currentModelId, setGalleryItems } = useAppStore();
+  const { currentModelId, setGalleryItems, effectiveModelFormat } = useAppStore();
 
   const handlePreview = (item: GalleryItemType) => {
     if (item.image_url) {
@@ -21,7 +21,7 @@ export function GalleryList({ items, onSelectModel }: GalleryListProps) {
   };
 
   const handleDownload = (item: GalleryItemType) => {
-    downloadModel(item.id);
+    downloadModel(item.id, effectiveModelFormat());
   };
 
   const handleDelete = async (item: GalleryItemType) => {

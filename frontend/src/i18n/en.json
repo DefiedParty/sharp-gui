@@ -107,5 +107,15 @@
   "dropModelHint": "Drop .ply or .splat file to preview",
   "unsupportedFormat": "Unsupported format. Please drop .ply or .splat files.",
   "modelLoaded": "Model loaded",
-  "modelLoadFailed": "Failed to load model"
+  "modelLoadFailed": "Failed to load model",
+
+  "modelFormatLabel": "Default Model Format",
+  "modelFormatHint": "SPZ is 5-10x smaller with no visible quality loss. PLY preserves full original data.",
+  "formatCompact": "(Compact)",
+  "formatOriginal": "(Original)",
+  "formatToggleTooltip": "Toggle model format (SPZ compact / PLY original)",
+  "convertAllToSpz": "Convert All Existing Models to SPZ",
+  "converting": "Converting...",
+  "convertAllResult": "Converted: {{converted}}, Skipped: {{skipped}}, Failed: {{failed}} (Total: {{total}})",
+  "settingsRestartWarning": "Changing workspace folder requires server restart"
 }

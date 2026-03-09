@@ -53,7 +53,7 @@ export async function apiGet<T>(url: string): Promise<T> {
 export async function apiPost<T>(
   url: string,
   data?: unknown,
-  options?: RequestInit
+  options?: RequestInit & { timeout?: number }
 ): Promise<T> {
   const response = await fetchWithTimeout(url, {
     method: 'POST',

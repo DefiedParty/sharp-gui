@@ -1,7 +1,9 @@
 import { apiGet, apiPost } from './client';
+import type { ModelFormat } from '@/types';
 
 export interface SettingsData {
   workspace_folder?: string;
+  model_format?: ModelFormat;
   is_local?: boolean;
 }
 
@@ -17,7 +19,7 @@ export async function fetchSettings(): Promise<SettingsData> {
  */
 export async function saveSettings(
   settings: SettingsData
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; needs_restart?: boolean; error?: string }> {
   return apiPost('/api/settings', settings);
 }
 
@@ -40,4 +42,17 @@ export async function restartServer(): Promise<void> {
   } catch {
     // Restart will close connection, this is expected
   }
+}
+
+/**
+ * Batch convert all existing PLY models to SPZ (local only)
+ */
+export async function convertAllToSpz(): Promise<{
+  success: boolean;
+  converted: number;
+  skipped: number;
+  failed: number;
+  total: number;
+}> {
+  return apiPost('/api/convert-all', undefined, { timeout: 300000 });
 }

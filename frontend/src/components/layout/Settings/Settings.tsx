@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchSettings, saveSettings, browseFolder, restartServer } from '@/api';
+import { fetchSettings, saveSettings, browseFolder, restartServer, convertAllToSpz } from '@/api';
+import type { ModelFormat } from '@/types';
 import styles from './Settings.module.css';
 
 // Folder icon
@@ -13,9 +14,14 @@ const FolderIcon = () => (
 
 export const Settings: React.FC = () => {
     const { t } = useTranslation();
-    const { settingsModalOpen, setSettingsModalOpen, setLoading } = useAppStore();
+    const { settingsModalOpen, setSettingsModalOpen, setLoading, serverModelFormat, setServerModelFormat, isLocalAccess } = useAppStore();
     const [workspaceFolder, setWorkspaceFolder] = useState('');
+    const [modelFormat, setModelFormat] = useState<ModelFormat>('spz');
     const [isSaving, setIsSaving] = useState(false);
+    const [isConverting, setIsConverting] = useState(false);
+
+    // Track if workspace_folder changed (needs restart)
+    const [originalWorkspace, setOriginalWorkspace] = useState('');
 
     // Load settings when modal opens
     useEffect(() => {
@@ -29,6 +35,10 @@ export const Settings: React.FC = () => {
             const data = await fetchSettings();
             if (data.workspace_folder) {
                 setWorkspaceFolder(data.workspace_folder);
+                setOriginalWorkspace(data.workspace_folder);
+            }
+            if (data.model_format) {
+                setModelFormat(data.model_format);
             }
         } catch (error) {
             console.error('Failed to load settings:', error);
@@ -59,24 +69,46 @@ export const Settings: React.FC = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const result = await saveSettings({ workspace_folder: workspaceFolder });
-            if (result.success) {
+            const payload: Record<string, string> = {};
+            
+            // Always save model_format
+            if (modelFormat !== serverModelFormat) {
+                payload.model_format = modelFormat;
+            }
+            
+            // Only include workspace if changed
+            const workspaceChanged = workspaceFolder !== originalWorkspace;
+            if (workspaceChanged) {
+                payload.workspace_folder = workspaceFolder;
+            }
+
+            // If nothing changed, just close
+            if (Object.keys(payload).length === 0) {
                 handleClose();
-                
-                // Show loading overlay
-                setLoading(true, 'Restarting server...');
-                
-                // Trigger backend restart
-                try {
-                    await restartServer();
-                } catch {
-                    // Restart will close connection, this is expected
+                return;
+            }
+
+            const result = await saveSettings(payload);
+            if (result.success) {
+                // Update store with new format
+                if (payload.model_format) {
+                    setServerModelFormat(modelFormat);
                 }
-                
-                // Reload page after delay (wait for server restart)
-                setTimeout(() => {
-                    window.location.reload();
-                }, 3000);
+
+                if (result.needs_restart) {
+                    handleClose();
+                    setLoading(true, 'Restarting server...');
+                    try {
+                        await restartServer();
+                    } catch {
+                        // Restart will close connection, this is expected
+                    }
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+                } else {
+                    handleClose();
+                }
             } else {
                 alert('Error: ' + (result.error || 'Unknown error'));
             }
@@ -88,6 +120,27 @@ export const Settings: React.FC = () => {
         }
     };
 
+    const handleConvertAll = async () => {
+        setIsConverting(true);
+        try {
+            const result = await convertAllToSpz();
+            if (result.success) {
+                const msg = t('convertAllResult', { 
+                    converted: result.converted,
+                    skipped: result.skipped,
+                    failed: result.failed,
+                    total: result.total
+                });
+                alert(msg);
+            }
+        } catch (error) {
+            console.error('Batch conversion failed:', error);
+            alert('Batch conversion failed');
+        } finally {
+            setIsConverting(false);
+        }
+    };
+
     return (
         <div 
             className={`${styles.modal} ${settingsModalOpen ? styles.visible : ''}`}
@@ -96,6 +149,7 @@ export const Settings: React.FC = () => {
             <div className={styles.panel}>
                 <h3 className={styles.title}>⚙️ {t('settings')}</h3>
 
+                {isLocalAccess && (
                 <div className={styles.group}>
                     <label className={styles.label}>
                         Workspace Folder ({t('workspaceFolder') || '工作目录'})
@@ -120,10 +174,48 @@ export const Settings: React.FC = () => {
                         📁 inputs/ ({t('images') || '图片'}) &nbsp;&nbsp; 📁 outputs/ ({t('models') || '模型'})
                     </p>
                 </div>
+                )}
 
-                <p className={styles.warning}>
-                    ⚠️ {t('settingsRestartWarning') || '修改后需重启服务器生效'}
-                </p>
+                {/* Model Format Preference */}
+                <div className={styles.group}>
+                    <label className={styles.label}>
+                        {t('modelFormatLabel')}
+                    </label>
+                    <div className={styles.segmentedControl}>
+                        <button
+                            className={`${styles.segmentBtn} ${modelFormat === 'spz' ? styles.segmentActive : ''}`}
+                            onClick={() => setModelFormat('spz')}
+                        >
+                            SPZ {t('formatCompact')}
+                        </button>
+                        <button
+                            className={`${styles.segmentBtn} ${modelFormat === 'ply' ? styles.segmentActive : ''}`}
+                            onClick={() => setModelFormat('ply')}
+                        >
+                            PLY {t('formatOriginal')}
+                        </button>
+                    </div>
+                    <p className={styles.hint}>
+                        {t('modelFormatHint')}
+                    </p>
+                </div>
+
+                {/* Batch Convert */}
+                <div className={styles.group}>
+                    <button
+                        className={styles.convertBtn}
+                        onClick={handleConvertAll}
+                        disabled={isConverting}
+                    >
+                        {isConverting ? '⏳ ' + t('converting') : '📦 ' + t('convertAllToSpz')}
+                    </button>
+                </div>
+
+                {isLocalAccess && workspaceFolder !== originalWorkspace && (
+                    <p className={styles.warning}>
+                        ⚠️ {t('settingsRestartWarning') || '修改工作目录后需重启服务器生效'}
+                    </p>
+                )}
 
                 <div className={styles.actions}>
                     <button className={styles.cancelBtn} onClick={handleClose}>

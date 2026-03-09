@@ -1,5 +1,16 @@
 import { create } from 'zustand';
-import type { GalleryItem, Task } from '@/types';
+import type { GalleryItem, Task, ModelFormat } from '@/types';
+
+// localStorage key for client-side format preference override
+const LOCAL_FORMAT_KEY = 'sharp-model-format';
+
+function getLocalFormatOverride(): ModelFormat | null {
+  try {
+    const v = localStorage.getItem(LOCAL_FORMAT_KEY);
+    if (v === 'ply' || v === 'spz') return v;
+  } catch { /* ignore */ }
+  return null;
+}
 
 interface AppState {
   // UI State
@@ -24,6 +35,10 @@ interface AppState {
   currentModelUrl: string | null;
   currentModelFormat: 'ply' | 'splat' | 'spz' | null; // Format hint for blob URLs
   
+  // Model Format Preference
+  serverModelFormat: ModelFormat;        // Host default from config.json
+  localModelFormat: ModelFormat | null;  // Client override via localStorage
+  
   // Task Queue
   tasks: Task[];
   hasActiveTasks: boolean;
@@ -35,6 +50,10 @@ interface AppState {
   
   // Settings
   isLocalAccess: boolean;
+  
+  // Computed
+  /** Effective format: client override > server default */
+  effectiveModelFormat: () => ModelFormat;
   
   // Actions
   setSidebarOpen: (open: boolean) => void;
@@ -53,6 +72,10 @@ interface AppState {
   setGalleryItems: (items: GalleryItem[]) => void;
   setCurrentModel: (id: string | null, url: string | null, format?: 'ply' | 'splat' | 'spz' | null) => void;
   
+  setServerModelFormat: (format: ModelFormat) => void;
+  setLocalModelFormat: (format: ModelFormat | null) => void;
+  toggleLocalModelFormat: () => void;
+  
   setTasks: (tasks: Task[], hasActive: boolean) => void;
   
   toggleLimits: () => void;
@@ -62,7 +85,7 @@ interface AppState {
   setLocalAccess: (isLocal: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   // Initial State
   sidebarOpen: false,
   sidebarCollapsed: false,
@@ -82,6 +105,10 @@ export const useAppStore = create<AppState>((set) => ({
   currentModelUrl: null,
   currentModelFormat: null,
   
+  // Model Format Preference
+  serverModelFormat: 'spz',
+  localModelFormat: getLocalFormatOverride(),
+  
   tasks: [],
   hasActiveTasks: false,
   
@@ -90,6 +117,12 @@ export const useAppStore = create<AppState>((set) => ({
   isJoystickEnabled: false,
   
   isLocalAccess: false,
+  
+  // Computed: client override > server default
+  effectiveModelFormat: () => {
+    const state = get();
+    return state.localModelFormat ?? state.serverModelFormat;
+  },
   
   // Actions
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -102,13 +135,11 @@ export const useAppStore = create<AppState>((set) => ({
   setLoading: (loading, text = '') => set((state) => ({ 
     isLoading: loading, 
     loadingText: text,
-    // Only reset progress when starting (from false to true) or completing
     loadingProgress: loading 
-      ? (state.isLoading ? state.loadingProgress : 0)  // Keep progress if already loading
+      ? (state.isLoading ? state.loadingProgress : 0)
       : 0,
   })),
   setLoadingProgress: (progress) => set((state) => ({
-    // Only allow progress to increase
     loadingProgress: Math.max(state.loadingProgress, progress),
   })),
   
@@ -117,6 +148,24 @@ export const useAppStore = create<AppState>((set) => ({
   
   setGalleryItems: (items) => set({ galleryItems: items }),
   setCurrentModel: (id, url, format = null) => set({ currentModelId: id, currentModelUrl: url, currentModelFormat: format }),
+  
+  setServerModelFormat: (format) => set({ serverModelFormat: format }),
+  setLocalModelFormat: (format) => {
+    if (format) {
+      try { localStorage.setItem(LOCAL_FORMAT_KEY, format); } catch { /* ignore */ }
+    } else {
+      try { localStorage.removeItem(LOCAL_FORMAT_KEY); } catch { /* ignore */ }
+    }
+    set({ localModelFormat: format });
+  },
+  toggleLocalModelFormat: () => {
+    const state = get();
+    const current = state.localModelFormat ?? state.serverModelFormat;
+    const next: ModelFormat = current === 'spz' ? 'ply' : 'spz';
+    // Set as local override
+    try { localStorage.setItem(LOCAL_FORMAT_KEY, next); } catch { /* ignore */ }
+    set({ localModelFormat: next });
+  },
   
   setTasks: (tasks, hasActive) => set({ tasks, hasActiveTasks: hasActive }),
   

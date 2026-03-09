@@ -1,5 +1,5 @@
 import { apiGet, apiDelete } from './client';
-import type { GalleryItem } from '@/types';
+import type { GalleryItem, ModelFormat } from '@/types';
 
 /**
  * Fetch gallery items from API
@@ -19,9 +19,10 @@ export async function deleteGalleryItem(
 
 /**
  * Download model file (triggers browser download)
+ * @param format - 'spz' (default) or 'ply'
  */
-export function downloadModel(id: string): void {
-  window.location.href = `/api/download/${id}`;
+export function downloadModel(id: string, format: ModelFormat = 'spz'): void {
+  window.location.href = `/api/download/${id}?format=${format}`;
 }
 
 /**

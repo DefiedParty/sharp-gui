@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, DownloadIcon, DeleteIcon } from '@/components/common/Icons';
 import { formatFileSize } from '@/utils';
+import { useAppStore } from '@/store/useAppStore';
 import type { GalleryItem as GalleryItemType } from '@/types';
 import styles from './GalleryItem.module.css';
 
@@ -22,6 +23,12 @@ export function GalleryItem({
   onDelete,
 }: GalleryItemProps) {
   const { t } = useTranslation();
+  const { effectiveModelFormat } = useAppStore();
+  const fmt = effectiveModelFormat();
+  
+  // Pick size based on effective format
+  const displaySize = (fmt === 'spz' && item.spz_size) ? item.spz_size : item.size;
+  const formatLabel = (fmt === 'spz' && item.spz_url) ? 'SPZ' : 'PLY';
   
   const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation();
@@ -46,7 +53,7 @@ export function GalleryItem({
       <div className={styles.info}>
         <div className={styles.name}>{item.name}</div>
         <div className={styles.meta}>
-          {item.size ? formatFileSize(item.size) : t('ready')}
+          {displaySize ? `${formatFileSize(displaySize)} · ${formatLabel}` : t('ready')}
         </div>
       </div>
 

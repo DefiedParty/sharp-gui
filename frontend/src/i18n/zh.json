@@ -107,5 +107,15 @@
   "dropModelHint": "拖拽 .ply 或 .splat 文件预览",
   "unsupportedFormat": "不支持的格式，请拖拽 .ply 或 .splat 文件",
   "modelLoaded": "模型已加载",
-  "modelLoadFailed": "模型加载失败"
+  "modelLoadFailed": "模型加载失败",
+
+  "modelFormatLabel": "默认模型格式",
+  "modelFormatHint": "SPZ: 体积缩小 5-10 倍，视觉无损。PLY: 保留完整原始数据。",
+  "formatCompact": "(紧凑)",
+  "formatOriginal": "(原始)",
+  "formatToggleTooltip": "切换模型格式 (SPZ 紧凑 / PLY 原始)",
+  "convertAllToSpz": "批量转换现有模型为 SPZ",
+  "converting": "转换中...",
+  "convertAllResult": "已转换: {{converted}}，已跳过: {{skipped}}，失败: {{failed}} (共 {{total}} 个)",
+  "settingsRestartWarning": "修改工作目录后需重启服务器生效"
 }

@@ -31,6 +31,8 @@ function App() {
     setLoading,
     currentModelUrl,
     toggleSidebar,
+    setServerModelFormat,
+    effectiveModelFormat,
   } = useAppStore()
 
   // Initial data fetch
@@ -45,9 +47,12 @@ function App() {
         const tasksData = await fetchTasks()
         setTasks(tasksData.tasks, tasksData.has_active)
 
-        // Check local access
+        // Check local access + server format preference
         const settings = await fetchSettings()
         setLocalAccess(settings.is_local ?? false)
+        if (settings.model_format) {
+          setServerModelFormat(settings.model_format)
+        }
 
         setBootComplete()
       } catch (error) {
@@ -56,7 +61,7 @@ function App() {
       }
     }
     init()
-  }, [setBootComplete, setBootError, setGalleryItems, setTasks, setLocalAccess])
+  }, [setBootComplete, setBootError, setGalleryItems, setTasks, setLocalAccess, setServerModelFormat])
 
   // Handle file upload
   const handleUpload = useCallback(async (files: FileList) => {
@@ -75,18 +80,21 @@ function App() {
     }
   }, [t, setLoading, setTasks])
 
-  // Handle model selection
+  // Handle model selection — pick URL based on format preference
   const handleSelectModel = useCallback((item: GalleryItem) => {
-    setCurrentModel(item.id, item.model_url)
+    const format = effectiveModelFormat()
+    // Use SPZ URL if preferred and available, otherwise fall back to PLY
+    const useSpz = format === 'spz' && item.spz_url
+    const url = useSpz ? item.spz_url! : item.model_url
+    const formatHint = useSpz ? 'spz' as const : 'ply' as const
+    
+    setCurrentModel(item.id, url, formatHint)
     
     // On mobile, close sidebar after selection
     if (window.innerWidth <= 768 && sidebarOpen) {
       toggleSidebar()
     }
-    
-    // TODO: Integrate with actual 3D viewer
-    console.log('Selected model:', item.model_url)
-  }, [setCurrentModel, sidebarOpen, toggleSidebar])
+  }, [setCurrentModel, sidebarOpen, toggleSidebar, effectiveModelFormat])
 
   // Handle model file drop (.ply / .splat) for direct preview
   const handleModelDrop = useCallback((e: React.DragEvent) => {

@@ -144,3 +144,66 @@
 .saveBtn:hover {
     background: var(--accent-blue-hover);
 }
+
+/* Format Toggle (Segmented Control) */
+.segmentedControl {
+    display: flex;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    gap: 2px;
+}
+
+.segmentBtn {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.segmentBtn:hover {
+    color: var(--text-primary);
+}
+
+.segmentBtn.segmentActive {
+    background: white;
+    color: var(--accent-blue);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.convertBtn {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.convertBtn:hover {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.convertBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
