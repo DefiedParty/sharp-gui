@@ -138,3 +138,5 @@ Bug 修复 (install.bat):
 7. 不要写代码实现细节（如函数名、变量名），只写用户能感知的变化
 8. 输出必须用 markdown 代码块包裹 (`markdown ... `)，方便用户复制
 9. Pre-release 版本的更新指引中，`update.bat`/`update.sh` 必须加 `--pre` 参数（如 `update.bat --pre` 或 `./update.sh --pre`），正式版不需要
+10. 生成release note 前，先完整获取并整理上一个tag到目前main分支的所有commit message，确保release note的准确性和完整性
+11. 生成正式版 release note前，完整获取并整理github上，上一个正式版本到目前最新的pre-release版本的release note，确保正式release note的准确性和完整性
