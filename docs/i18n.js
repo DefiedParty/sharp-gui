@@ -13,7 +13,7 @@ const i18n = {
     // === Meta ===
     "meta.title": "Sharp GUI - 本地化 3D 高斯溅射",
     "meta.description":
-      "一个精美的 3D 高斯溅射 (Gaussian Splatting) 图形化界面,基于 Apple ml-sharp,本地部署,全屋访问。",
+      "一个精美的 3D 高斯溅射 (Three.js + Spark) 图形化界面,基于 Apple ml-sharp,本地部署,全屋访问。",
 
     // === Navbar ===
     "nav.features": "特性",
@@ -22,7 +22,7 @@ const i18n = {
     "nav.install": "安装",
 
     // === Hero Section ===
-    "hero.badge": "✨ 本地化 3D Gaussian Splatting",
+    "hero.badge": "✨ 自托管 3D 空间相册",
     "hero.title": "你的空间记忆<br>触手可及",
     "hero.subtitle":
       "打破设备界限，一次部署，全屋访问。无需云端上传，在浏览器中即可生成并漫游令人惊叹的 3D 场景。",
@@ -90,7 +90,7 @@ const i18n = {
     "arch.backend.queue": "异步串行队列",
     "arch.backend.cert": "自签名证书",
     "arch.ai.sharp": "Apple 研究引擎",
-    "arch.ai.ply": "3D Gaussian 格式",
+    "arch.ai.ply": "PLY/SPZ 格式",
     "arch.metric.compression": "体积压缩",
     "arch.metric.inference": "单图推理",
     "arch.metric.render": "流畅渲染",
@@ -127,7 +127,7 @@ const i18n = {
     "nav.install": "Install",
 
     // === Hero Section ===
-    "hero.badge": "✨ Local 3D Gaussian Splatting",
+    "hero.badge": "✨ Self-Hosted 3D Spatial Gallery",
     "hero.title": "Your Spatial Memories<br>At Your Fingertips",
     "hero.subtitle":
       "Break device barriers. Deploy once, access everywhere. Generate and explore stunning 3D scenes right in your browser—no cloud upload needed.",
@@ -198,7 +198,7 @@ const i18n = {
     "arch.backend.queue": "Async Serial Queue",
     "arch.backend.cert": "Self-Signed Cert",
     "arch.ai.sharp": "Apple Research Engine",
-    "arch.ai.ply": "3D Gaussian Format",
+    "arch.ai.ply": "PLY/SPZ Format",
     "arch.metric.compression": "Size Reduction",
     "arch.metric.inference": "Single Image",
     "arch.metric.render": "Smooth Render",
