@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type RefObject } from 'react';
 import * as THREE from 'three';
 import type { ViewerContext } from './useViewer';
+import { useAppStore } from '@/store/useAppStore';
 import { DEFAULT_CAMERA_CONFIG } from '@/utils/camera';
 
 type XRMode = 'vr' | 'ar';
@@ -52,6 +53,14 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
   const arTouchCleanupRef = useRef<(() => void) | null>(null);
   // Store calibrated rig home position so reset goes back to calibrated state
   const rigHomeRef = useRef<{ y: number; z: number }>({ y: 0, z: 0 });
+  // Pre-XR Spark parameters saved on enter, restored on exit
+  const savedSparkParamsRef = useRef<{
+    maxStdDev: number;
+    minAlpha: number;
+    clipXY: number;
+    minPixelRadius: number;
+    maxPixelRadius: number;
+  } | null>(null);
 
   // ── Check XR support on mount ───────────────────────────────────────
   useEffect(() => {
@@ -171,6 +180,46 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
       console.log(`[XR] Entering ${mode.toUpperCase()} session...`);
 
       renderer.xr.enabled = true;
+
+      // ── Switch Spark to stochastic rendering for XR ──────────────────
+      // The default sorted alpha-blend mode uses a deferred GPU-readback sort
+      // pipeline (setTimeout → Readback.process → readRenderTargetPixelsAsync)
+      // that runs OUTSIDE the XR frame callback. On Quest 3 real hardware the
+      // XR compositor owns the GL context, so the out-of-frame readback returns
+      // corrupted data → activeSplats=0 → model vanishes (~2-3 s).
+      //
+      // Even with autoUpdate=false the frozen sort order causes the shader's
+      // view-space culling (viewCenter.z, clipCenter, clipXY) to discard more
+      // and more splats as the user moves their head, eventually making the
+      // model disappear.
+      //
+      // Stochastic mode solves both problems:
+      //  - Uses random alpha-dithering + depth test instead of sorted blending
+      //  - Indexes splats via gl_InstanceID (no sort buffer needed)
+      //  - instanceCount = numSplats (all splats always rendered)
+      //  - At 90 fps the temporal noise is imperceptible on solid regions
+      ctx.sparkRenderer.autoUpdate = false;
+      // SparkRenderer.viewpoint is public in local d.ts (line 176) but absent in
+      // the Spark version GitHub Actions resolves from the git tag — cast to access.
+      (ctx.sparkRenderer as unknown as { viewpoint: { stochastic: boolean } }).viewpoint.stochastic = true;
+
+      // ── Save & apply XR-optimised Spark parameters ──────────────────
+      savedSparkParamsRef.current = {
+        maxStdDev: ctx.sparkRenderer.maxStdDev,
+        minAlpha: ctx.sparkRenderer.minAlpha,
+        clipXY: ctx.sparkRenderer.clipXY,
+        minPixelRadius: ctx.sparkRenderer.minPixelRadius,
+        maxPixelRadius: ctx.sparkRenderer.maxPixelRadius,
+      };
+      ctx.sparkRenderer.maxStdDev = Math.sqrt(5);      // ~2.24 (default √8≈2.83)
+      ctx.sparkRenderer.minAlpha = 2 / 255;             // more aggressive cull
+      ctx.sparkRenderer.clipXY = 1.2;                   // tighter frustum clip
+      ctx.sparkRenderer.minPixelRadius = 0.25;           // cull sub-pixel splats
+      ctx.sparkRenderer.maxPixelRadius = 256;            // cap oversized splats
+
+      // Use native headset resolution — avoids rendering at desktop DPR which
+      // causes severe frame drops and possible session termination.
+      renderer.setPixelRatio(1);
 
       // ── AR-specific: save background, make scene transparent ────────
       if (mode === 'ar') {
@@ -362,6 +411,20 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
           }
         }
 
+        // ── Restore Spark to sorted alpha-blend mode ──────────────
+        (ctx.sparkRenderer as unknown as { viewpoint: { stochastic: boolean } }).viewpoint.stochastic = false;
+        ctx.sparkRenderer.autoUpdate = true;
+
+        // Restore pre-XR Spark quality parameters
+        if (savedSparkParamsRef.current) {
+          ctx.sparkRenderer.maxStdDev = savedSparkParamsRef.current.maxStdDev;
+          ctx.sparkRenderer.minAlpha = savedSparkParamsRef.current.minAlpha;
+          ctx.sparkRenderer.clipXY = savedSparkParamsRef.current.clipXY;
+          ctx.sparkRenderer.minPixelRadius = savedSparkParamsRef.current.minPixelRadius;
+          ctx.sparkRenderer.maxPixelRadius = savedSparkParamsRef.current.maxPixelRadius;
+          savedSparkParamsRef.current = null;
+        }
+
         // ── Fully restore camera & renderer to pre-XR state ───────────
         camera.position.set(...DEFAULT_CAMERA_CONFIG.initialPosition);
         camera.up.set(...DEFAULT_CAMERA_CONFIG.cameraUp);
@@ -370,7 +433,7 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
         camera.near = DEFAULT_CAMERA_CONFIG.near;
         camera.far = DEFAULT_CAMERA_CONFIG.far;
 
-        // Restore viewport size and pixel ratio
+        // Restore viewport size and pixel ratio — respect High Fidelity setting
         const container = renderer.domElement.parentElement;
         if (container) {
           const w = container.clientWidth;
@@ -378,7 +441,8 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
           camera.aspect = w / h;
           renderer.setSize(w, h);
         }
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        const { isHighFidelity } = useAppStore.getState();
+        renderer.setPixelRatio(isHighFidelity ? window.devicePixelRatio : Math.min(window.devicePixelRatio, 2));
         camera.updateProjectionMatrix();
 
         // Reset OrbitControls — orbit around origin with default state
