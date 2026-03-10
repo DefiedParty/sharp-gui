@@ -81,9 +81,35 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
     const c = ctx.controls;
 
     const targetPos = new THREE.Vector3(...DEFAULT_CAMERA_CONFIG.initialPosition);
-    const targetLookAt = new THREE.Vector3(0, 0, 0);
+    let targetLookAt = new THREE.Vector3(0, 0, 0);
     const targetUp = new THREE.Vector3(...DEFAULT_CAMERA_CONFIG.cameraUp);
 
+    // Dynamic intersection point algorithm: Calculate where the front face of the bounding box starts
+    // and push the focus point inward proportionally (a quadratic curve modeled from sample data)
+    let dynamicOffset = DEFAULT_CAMERA_CONFIG.orbitTargetOffset || 1.5;
+
+    if (ctx.splatMesh && typeof ctx.splatMesh.getBoundingBox === 'function') {
+      if (!ctx.renderer.xr.isPresenting) {
+        ctx.splatMesh.updateMatrixWorld(true);
+        const bbox = ctx.splatMesh.getBoundingBox().clone();
+        bbox.applyMatrix4(ctx.splatMesh.matrixWorld);
+
+        if (!bbox.isEmpty()) {
+          // Camera is positioned at targetPos 
+          // Since camera initially looks down -Z, the frontest point of the model is max.z
+          const frontZ = bbox.max.z;
+          // DF (Distance to Front): Distance from camera to the frontest visible surface
+          const distToFront = Math.max(0.1, targetPos.z - frontZ);
+
+          // Best-fit curve from user samples: Offset = DF + 0.08 * DF^2
+          dynamicOffset = distToFront + 0.08 * Math.pow(distToFront, 2);
+        }
+      }
+    }
+
+    // Compute pivot along the viewing direction
+    const forwardDir = new THREE.Vector3(0, 0, -1);
+    targetLookAt.copy(targetPos).add(forwardDir.multiplyScalar(dynamicOffset));
     const startPos = c.object.position.clone();
     const startLookAt = c.target.clone();
     const startUp = c.object.up.clone();
@@ -168,8 +194,10 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
 
         // SparkRenderer — must be explicitly added to scene (Spark 2.0)
         // When High Fidelity is ON, set blurAmount and preBlurAmount to 0 to remove forced anti-aliasing
+        // coneFoveate helps optimize WebXR/VR peripheral rendering drastically
         const sparkRenderer = new SparkRenderer({
           renderer,
+          coneFoveate: 0.1,
           ...(isHighFidelity ? { blurAmount: 0, preBlurAmount: 0 } : {})
         });
         scene.add(sparkRenderer);
@@ -358,6 +386,9 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
         splatMesh.rotation.x = Math.PI;
         ctx.scene.add(splatMesh);
         ctx.splatMesh = splatMesh;
+
+        // Spark 2.0 dynamic focal viewport completely initialized.
+
 
         setLoading(false);
 

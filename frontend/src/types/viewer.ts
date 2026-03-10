@@ -5,6 +5,7 @@ export interface CameraConfig {
   // Initial position
   initialPosition: [number, number, number];
   cameraUp: [number, number, number];
+  orbitTargetOffset?: number;
 
   // Mouse button mapping
   mouseButtons: {

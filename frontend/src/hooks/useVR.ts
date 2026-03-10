@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type RefObject } from 'react';
 import * as THREE from 'three';
 import type { ViewerContext } from './useViewer';
+import { useAppStore } from '@/store/useAppStore';
 import { DEFAULT_CAMERA_CONFIG } from '@/utils/camera';
 
 interface UseVRProps {
@@ -147,6 +148,10 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
         console.log('[VR] Entering VR session...');
 
         renderer.xr.enabled = true;
+        // Optimize WebXR synchronization to eliminate dual-eye rendering latency issues
+        ctx.sparkRenderer.preUpdate = false;
+        // Use native underlying VR resolution scaling
+        renderer.setPixelRatio(1);
 
         const session = await navigator.xr.requestSession('immersive-vr', {
           optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'],
@@ -234,7 +239,12 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
             camera.aspect = w / h;
             renderer.setSize(w, h);
           }
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+          // Restore correct Spark update scheduling and resolution according to High Fidelity setting
+          ctx.sparkRenderer.preUpdate = true;
+          const { isHighFidelity } = useAppStore.getState();
+          renderer.setPixelRatio(isHighFidelity ? window.devicePixelRatio : Math.min(window.devicePixelRatio, 2));
+
           camera.updateProjectionMatrix();
 
           // Reset OrbitControls — orbit around origin with default state
@@ -263,7 +273,7 @@ export const useVR = ({ viewerRef }: UseVRProps): UseVRReturn => {
   useEffect(() => {
     return () => {
       if (sessionRef.current) {
-        sessionRef.current.end().catch(() => {});
+        sessionRef.current.end().catch(() => { });
       }
     };
   }, []);

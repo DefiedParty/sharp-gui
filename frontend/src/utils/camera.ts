@@ -9,6 +9,10 @@ export const DEFAULT_CAMERA_CONFIG: CameraConfig = {
   initialPosition: [0, 0, 1],
   cameraUp: [0, 1, 0], // Y-up (standard Three.js / Spark convention)
 
+  // Target Orbit Focus Point (Distance from camera strictly along looking direction)
+  // User can adjust this value to control how far "crosswise" the center point pushes into the model 
+  orbitTargetOffset: 10,
+
   // Mouse button mapping
   mouseButtons: {
     LEFT: 'ROTATE',
