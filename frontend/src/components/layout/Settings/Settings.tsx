@@ -14,7 +14,7 @@ const FolderIcon = () => (
 
 export const Settings: React.FC = () => {
     const { t } = useTranslation();
-    const { settingsModalOpen, setSettingsModalOpen, setLoading, serverModelFormat, setServerModelFormat, isLocalAccess } = useAppStore();
+    const { settingsModalOpen, setSettingsModalOpen, setLoading, serverModelFormat, setServerModelFormat, setLocalModelFormat, effectiveModelFormat, isLocalAccess, isLodEnabled, toggleLod, isHighFidelity, toggleHighFidelity, currentModelId, currentModelUrl, currentModelFormat: storeModelFormat, setCurrentModel } = useAppStore();
     const [workspaceFolder, setWorkspaceFolder] = useState('');
     const [modelFormat, setModelFormat] = useState<ModelFormat>('spz');
     const [isSaving, setIsSaving] = useState(false);
@@ -26,6 +26,7 @@ export const Settings: React.FC = () => {
     // Load settings when modal opens
     useEffect(() => {
         if (settingsModalOpen) {
+            setModelFormat(effectiveModelFormat());
             loadSettings();
         }
     }, [settingsModalOpen]);
@@ -37,9 +38,8 @@ export const Settings: React.FC = () => {
                 setWorkspaceFolder(data.workspace_folder);
                 setOriginalWorkspace(data.workspace_folder);
             }
-            if (data.model_format) {
-                setModelFormat(data.model_format);
-            }
+            // We do not overwrite modelFormat here because effectiveModelFormat() 
+            // already handles client-side overrides.
         } catch (error) {
             console.error('Failed to load settings:', error);
         }
@@ -69,13 +69,20 @@ export const Settings: React.FC = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            // For non-local users, simply save format preference to localStorage and close.
+            if (!isLocalAccess) {
+                setLocalModelFormat(modelFormat);
+                handleClose();
+                return;
+            }
+
             const payload: Record<string, string> = {};
-            
+
             // Always save model_format
             if (modelFormat !== serverModelFormat) {
                 payload.model_format = modelFormat;
             }
-            
+
             // Only include workspace if changed
             const workspaceChanged = workspaceFolder !== originalWorkspace;
             if (workspaceChanged) {
@@ -93,6 +100,8 @@ export const Settings: React.FC = () => {
                 // Update store with new format
                 if (payload.model_format) {
                     setServerModelFormat(modelFormat);
+                    // Local user changing global default, so we can clear their local override
+                    setLocalModelFormat(null);
                 }
 
                 if (result.needs_restart) {
@@ -125,7 +134,7 @@ export const Settings: React.FC = () => {
         try {
             const result = await convertAllToSpz();
             if (result.success) {
-                const msg = t('convertAllResult', { 
+                const msg = t('convertAllResult', {
                     converted: result.converted,
                     skipped: result.skipped,
                     failed: result.failed,
@@ -142,7 +151,7 @@ export const Settings: React.FC = () => {
     };
 
     return (
-        <div 
+        <div
             className={`${styles.modal} ${settingsModalOpen ? styles.visible : ''}`}
             onClick={handleBackdropClick}
         >
@@ -150,31 +159,115 @@ export const Settings: React.FC = () => {
                 <h3 className={styles.title}>⚙️ {t('settings')}</h3>
 
                 {isLocalAccess && (
+                    <div className={styles.group}>
+                        <label className={styles.label}>
+                            Workspace Folder ({t('workspaceFolder') || '工作目录'})
+                        </label>
+                        <div className={styles.inputWrapper}>
+                            <input
+                                type="text"
+                                className={styles.input}
+                                value={workspaceFolder}
+                                onChange={(e) => setWorkspaceFolder(e.target.value)}
+                                placeholder="/path/to/workspace"
+                            />
+                            <button
+                                className={styles.browseBtn}
+                                onClick={handleBrowse}
+                                title="Browse"
+                            >
+                                <FolderIcon />
+                            </button>
+                        </div>
+                        <p className={styles.hint}>
+                            📁 inputs/ ({t('images') || '图片'}) &nbsp;&nbsp; 📁 outputs/ ({t('models') || '模型'})
+                        </p>
+                    </div>
+                )}
+
+                {/* LOD (Level-of-Detail) Toggle */}
                 <div className={styles.group}>
                     <label className={styles.label}>
-                        Workspace Folder ({t('workspaceFolder') || '工作目录'})
+                        {t('lodLabel')}
                     </label>
-                    <div className={styles.inputWrapper}>
-                        <input
-                            type="text"
-                            className={styles.input}
-                            value={workspaceFolder}
-                            onChange={(e) => setWorkspaceFolder(e.target.value)}
-                            placeholder="/path/to/workspace"
-                        />
-                        <button 
-                            className={styles.browseBtn}
-                            onClick={handleBrowse}
-                            title="Browse"
+                    <div className={styles.segmentedControl}>
+                        <button
+                            className={`${styles.segmentBtn} ${!isLodEnabled ? styles.segmentActive : ''}`}
+                            onClick={() => {
+                                if (isLodEnabled) {
+                                    toggleLod();
+                                    if (currentModelId && currentModelUrl) {
+                                        const fmt = storeModelFormat;
+                                        setCurrentModel(null, null);
+                                        setTimeout(() => setCurrentModel(currentModelId, currentModelUrl, fmt), 50);
+                                    }
+                                }
+                            }}
                         >
-                            <FolderIcon />
+                            {t('lodOff')}
+                        </button>
+                        <button
+                            className={`${styles.segmentBtn} ${isLodEnabled ? styles.segmentActive : ''}`}
+                            onClick={() => {
+                                if (!isLodEnabled) {
+                                    toggleLod();
+                                    if (currentModelId && currentModelUrl) {
+                                        const fmt = storeModelFormat;
+                                        setCurrentModel(null, null);
+                                        setTimeout(() => setCurrentModel(currentModelId, currentModelUrl, fmt), 50);
+                                    }
+                                }
+                            }}
+                        >
+                            {t('lodOn')}
                         </button>
                     </div>
                     <p className={styles.hint}>
-                        📁 inputs/ ({t('images') || '图片'}) &nbsp;&nbsp; 📁 outputs/ ({t('models') || '模型'})
+                        {t('lodHint')}
                     </p>
                 </div>
-                )}
+
+                {/* High Fidelity (最高保真度) Toggle */}
+                <div className={styles.group}>
+                    <label className={styles.label}>
+                        {t('highFidelityLabel')}
+                    </label>
+                    <div className={styles.segmentedControl}>
+                        <button
+                            className={`${styles.segmentBtn} ${!isHighFidelity ? styles.segmentActive : ''}`}
+                            onClick={() => {
+                                if (isHighFidelity) {
+                                    toggleHighFidelity();
+                                    if (currentModelId && currentModelUrl) {
+                                        const fmt = storeModelFormat;
+                                        setCurrentModel(null, null);
+                                        setTimeout(() => setCurrentModel(currentModelId, currentModelUrl, fmt), 50);
+                                    }
+                                }
+                            }}
+                        >
+                            {t('hfOff')}
+                        </button>
+                        <button
+                            className={`${styles.segmentBtn} ${isHighFidelity ? styles.segmentActive : ''}`}
+                            onClick={() => {
+                                if (!isHighFidelity) {
+                                    toggleHighFidelity();
+                                    if (currentModelId && currentModelUrl) {
+                                        const fmt = storeModelFormat;
+                                        setCurrentModel(null, null);
+                                        setTimeout(() => setCurrentModel(currentModelId, currentModelUrl, fmt), 50);
+                                    }
+                                }
+                            }}
+                        >
+                            {t('hfOn')}
+                        </button>
+                    </div>
+                    <p className={styles.hint}>
+                        {t('hfHint')}
+                    </p>
+                </div>
 
                 {/* Model Format Preference */}
                 <div className={styles.group}>
@@ -221,8 +314,8 @@ export const Settings: React.FC = () => {
                     <button className={styles.cancelBtn} onClick={handleClose}>
                         {t('cancel')}
                     </button>
-                    <button 
-                        className={styles.saveBtn} 
+                    <button
+                        className={styles.saveBtn}
                         onClick={handleSave}
                         disabled={isSaving}
                     >

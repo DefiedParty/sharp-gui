@@ -18,7 +18,7 @@ Sharp GUI 是一个 **3D 高斯溅射 (Gaussian Splatting) 图形化界面**，�
 | 前端框架 | React + TypeScript + Vite | 19 / 5.9 / 7 |
 | 状态管理 | Zustand | 5 |
 | 国际化 | i18next + react-i18next | 25 / 16 |
-| 3D 渲染 | Three.js + @sparkjsdev/spark | 0.182 / 0.1.10 |
+| 3D 渲染 | Three.js + @sparkjsdev/spark | 0.182 / 2.0.0-preview |
 | 后端 | Python + Flask | 3.10+ / latest |
 | AI 引擎 | Apple ml-sharp (PyTorch, gsplat) | — |
 | 样式方案 | CSS Modules + CSS Variables（Apple 毛玻璃设计语言） | — |

@@ -117,5 +117,13 @@
   "convertAllToSpz": "批量转换现有模型为 SPZ",
   "converting": "转换中...",
   "convertAllResult": "已转换: {{converted}}，已跳过: {{skipped}}，失败: {{failed}} (共 {{total}} 个)",
+  "lodLabel": "分级细节 (LOD)",
+  "lodOff": "关闭 (默认)",
+  "lodOn": "开启",
+  "lodHint": "LOD 根据设备性能自动选择每帧渲染的最优 Splat 数量，适合大场景，但会增加加载时间。",
+  "highFidelityLabel": "最高保真度 (High Fidelity)",
+  "hfOff": "关闭 (性能优先)",
+  "hfOn": "开启",
+  "hfHint": "开启后将解除渲染内部分辨率限制并关闭抗锯齿，还原原汁原味且锐利的极限画质，但极度消耗性能。",
   "settingsRestartWarning": "修改工作目录后需重启服务器生效"
 }

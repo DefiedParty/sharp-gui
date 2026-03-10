@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { SparkRenderer, SplatMesh, SplatLoader, SplatFileType } from '@sparkjsdev/spark';
+import { SparkRenderer, SplatMesh, SplatFileType } from '@sparkjsdev/spark';
 import { useAppStore } from '@/store/useAppStore';
 import { DEFAULT_CAMERA_CONFIG } from '@/utils/camera';
 import { useKeyboard } from './useKeyboard';
@@ -117,98 +117,127 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
 
   // ── Initialize Three.js + Spark infrastructure ──────────────────────
   useEffect(() => {
-    if (!containerRef.current || viewerRef.current) return;
+    if (!containerRef.current) return;
 
     const container = containerRef.current;
+    let isDisposed = false;
 
-    try {
-      // Scene
-      const scene = new THREE.Scene();
+    const initViewer = () => {
+      if (isDisposed) return; // Prevent re-initialization if already disposed
+      if (!containerRef.current) return; // Ensure container still exists
 
-      // Camera
-      const { fov, near, far } = DEFAULT_CAMERA_CONFIG;
-      const aspect = container.clientWidth / container.clientHeight || 1;
-      const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-      camera.up.set(...DEFAULT_CAMERA_CONFIG.cameraUp);
-      camera.position.set(...DEFAULT_CAMERA_CONFIG.initialPosition);
+      const state = useAppStore.getState();
+      const isHighFidelity = state.isHighFidelity;
 
-      // Renderer — antialias: false per Spark recommendation (splats don't benefit)
-      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      container.appendChild(renderer.domElement);
+      try {
+        // Scene
+        const scene = new THREE.Scene();
 
-      // OrbitControls
-      const controls = new OrbitControls(camera, renderer.domElement);
-      applyControlSettings(controls);
+        // Camera
+        const { fov, near, far } = DEFAULT_CAMERA_CONFIG;
+        const aspect = container.clientWidth / container.clientHeight || 1;
+        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+        camera.up.set(...DEFAULT_CAMERA_CONFIG.cameraUp); // Corrected typo from cameraCameraUp
+        camera.position.set(...DEFAULT_CAMERA_CONFIG.initialPosition);
 
-      // SparkRenderer (extends THREE.Mesh — must be added to scene)
-      const sparkRenderer = new SparkRenderer({ renderer });
-      scene.add(sparkRenderer);
+        // Renderer — antialias: false per Spark recommendation (splats don't benefit)
+        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
 
-      // Render loop
-      renderer.setAnimationLoop(() => {
-        controls.update();
-        renderer.render(scene, camera);
-      });
+        // If High Fidelity is ON, use native device pixel ratio without capping to unleash max sharpness
+        renderer.setPixelRatio(isHighFidelity ? window.devicePixelRatio : Math.min(window.devicePixelRatio, 2));
 
-      // ── Click-to-focus: raycast on click → orbit around hit point ──
-      const raycaster = new THREE.Raycaster();
-      const ndcCoord = new THREE.Vector2();
-      let pointerDownPos = { x: 0, y: 0 };
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
-      const onPointerDown = (e: PointerEvent) => {
-        pointerDownPos = { x: e.clientX, y: e.clientY };
-      };
+        // OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        // Apply settings directly
+        controls.mouseButtons = {
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        };
+        controls.touches = {
+          ONE: THREE.TOUCH.ROTATE,
+          TWO: THREE.TOUCH.DOLLY_PAN,
+        };
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxDistance = DEFAULT_CAMERA_CONFIG.maxDistance;
+        controls.maxPolarAngle = 180 * THREE.MathUtils.DEG2RAD; // 180deg
 
-      const onPointerUp = (e: PointerEvent) => {
-        // Only treat as click if pointer didn't move (not drag)
-        const dx = e.clientX - pointerDownPos.x;
-        const dy = e.clientY - pointerDownPos.y;
-        if (dx * dx + dy * dy > 9) return; // 3px threshold
+        // SparkRenderer — must be explicitly added to scene (Spark 2.0)
+        // When High Fidelity is ON, set blurAmount and preBlurAmount to 0 to remove forced anti-aliasing
+        const sparkRenderer = new SparkRenderer({
+          renderer,
+          ...(isHighFidelity ? { blurAmount: 0, preBlurAmount: 0 } : {})
+        });
+        scene.add(sparkRenderer);
 
-        const ctx = viewerRef.current;
-        if (!ctx?.splatMesh) return;
-
-        const rect = renderer.domElement.getBoundingClientRect();
-        ndcCoord.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        ndcCoord.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        raycaster.setFromCamera(ndcCoord, camera);
-        const hits = raycaster.intersectObject(ctx.splatMesh);
-        if (hits.length === 0) return;
-
-        // Smooth animate controls.target to the hit point
-        const hitPoint = hits[0].point.clone();
-        const startTarget = controls.target.clone();
-        const startTime = performance.now();
-        const dist = startTarget.distanceTo(hitPoint);
-        // Duration scales with distance: 300–600ms
-        const duration = Math.min(600, Math.max(300, dist * 400));
-
-        function animateFocus() {
-          const elapsed = performance.now() - startTime;
-          const t = Math.min(elapsed / duration, 1);
-          // Exponential ease-out: fast start, very smooth deceleration
-          const ease = 1 - Math.pow(1 - t, 4);
-          controls.target.lerpVectors(startTarget, hitPoint, ease);
+        // Render loop
+        renderer.setAnimationLoop(() => {
           controls.update();
-          if (t < 1) requestAnimationFrame(animateFocus);
-        }
-        requestAnimationFrame(animateFocus);
+          renderer.render(scene, camera);
+        });
 
-        // Show focus ring indicator at click position
-        showFocusRing(e.clientX - rect.left, e.clientY - rect.top, container);
-      };
+        // ── Click-to-focus: raycast on click → orbit around hit point ──
+        const raycaster = new THREE.Raycaster();
+        const ndcCoord = new THREE.Vector2();
+        let pointerDownPos = { x: 0, y: 0 };
 
-      renderer.domElement.addEventListener('pointerdown', onPointerDown);
-      renderer.domElement.addEventListener('pointerup', onPointerUp);
+        const onPointerDown = (e: PointerEvent) => {
+          pointerDownPos = { x: e.clientX, y: e.clientY };
+        };
 
-      viewerRef.current = { camera, controls, renderer, scene, sparkRenderer, splatMesh: null };
-      setIsViewerReady(true);
-    } catch (error) {
-      console.error('[Viewer] Failed to initialize:', error);
-    }
+        const onPointerUp = (e: PointerEvent) => {
+          // Only treat as click if pointer didn't move (not drag)
+          const dx = e.clientX - pointerDownPos.x;
+          const dy = e.clientY - pointerDownPos.y;
+          if (dx * dx + dy * dy > 9) return; // 3px threshold
+
+          const ctx = viewerRef.current;
+          if (!ctx?.splatMesh) return;
+
+          const rect = renderer.domElement.getBoundingClientRect();
+          ndcCoord.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          ndcCoord.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+          raycaster.setFromCamera(ndcCoord, camera);
+          const hits = raycaster.intersectObject(ctx.splatMesh);
+          if (hits.length === 0) return;
+
+          // Smooth animate controls.target to the hit point
+          const hitPoint = hits[0].point.clone();
+          const startTarget = controls.target.clone();
+          const startTime = performance.now();
+          const dist = startTarget.distanceTo(hitPoint);
+          // Duration scales with distance: 300–600ms
+          const duration = Math.min(600, Math.max(300, dist * 400));
+
+          function animateFocus() {
+            const elapsed = performance.now() - startTime;
+            const t = Math.min(elapsed / duration, 1);
+            // Exponential ease-out: fast start, very smooth deceleration
+            const ease = 1 - Math.pow(1 - t, 4);
+            controls.target.lerpVectors(startTarget, hitPoint, ease);
+            controls.update();
+            if (t < 1) requestAnimationFrame(animateFocus);
+          }
+          requestAnimationFrame(animateFocus);
+
+          // Show focus ring indicator at click position
+          showFocusRing(e.clientX - rect.left, e.clientY - rect.top, container);
+        };
+
+        renderer.domElement.addEventListener('pointerdown', onPointerDown);
+        renderer.domElement.addEventListener('pointerup', onPointerUp);
+
+        viewerRef.current = { camera, controls, renderer, scene, sparkRenderer, splatMesh: null };
+        setIsViewerReady(true);
+      } catch (error) {
+        console.error('[Viewer] Failed to initialize:', error);
+      }
+    };
 
     // Resize handler — ResizeObserver catches sidebar collapse, window resize, fullscreen, etc.
     const resizeObserver = new ResizeObserver(() => {
@@ -225,13 +254,46 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
     });
     resizeObserver.observe(container);
 
+    // Re-initialize if container ref changes or if high fidelity setting is toggled
+    let lastHF = useAppStore.getState().isHighFidelity;
+    const unsubscribeHF = useAppStore.subscribe((state) => {
+      const newHF = state.isHighFidelity;
+      if (newHF !== lastHF) {
+        lastHF = newHF;
+        // Hard tear-down and re-init to apply new pixelRatio properly
+        if (viewerRef.current) {
+          viewerRef.current.renderer.domElement.removeEventListener('pointerdown', () => { });
+          viewerRef.current.renderer.domElement.removeEventListener('pointerup', () => { });
+          viewerRef.current.renderer.setAnimationLoop(null);
+          viewerRef.current.splatMesh?.dispose();
+          viewerRef.current.scene.remove(viewerRef.current.sparkRenderer);
+          viewerRef.current.sparkRenderer.geometry?.dispose();
+          viewerRef.current.sparkRenderer.material?.dispose();
+          viewerRef.current.controls.dispose();
+          viewerRef.current.renderer.dispose();
+          viewerRef.current.renderer.domElement.remove();
+          viewerRef.current = null;
+          setIsViewerReady(false);
+          if (containerRef.current) containerRef.current.innerHTML = ''; // Clear container
+        }
+        initViewer();
+        // Let the other useEffect reload the model since the canvas is fresh.
+      }
+    }
+    );
+
+    // Initial viewer setup
+    initViewer();
+
     return () => {
+      isDisposed = true;
+      unsubscribeHF();
       resizeObserver.disconnect();
 
       const ctx = viewerRef.current;
       if (ctx) {
-        ctx.renderer.domElement.removeEventListener('pointerdown', () => {});
-        ctx.renderer.domElement.removeEventListener('pointerup', () => {});
+        ctx.renderer.domElement.removeEventListener('pointerdown', () => { });
+        ctx.renderer.domElement.removeEventListener('pointerup', () => { });
         ctx.renderer.setAnimationLoop(null);
         ctx.splatMesh?.dispose();
         ctx.scene.remove(ctx.sparkRenderer);
@@ -244,45 +306,6 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
       viewerRef.current = null;
       setIsViewerReady(false);
     };
-  }, [containerRef]);
-
-  // ── Apply OrbitControls settings ────────────────────────────────────
-  const applyControlSettings = useCallback((c: OrbitControls) => {
-    // Mouse buttons
-    c.mouseButtons = {
-      LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
-    };
-
-    // Touch
-    c.touches = {
-      ONE: THREE.TOUCH.ROTATE,
-      TWO: THREE.TOUCH.DOLLY_PAN,
-    };
-
-    // Speed
-    c.rotateSpeed = DEFAULT_CAMERA_CONFIG.rotateSpeed;
-    c.panSpeed = DEFAULT_CAMERA_CONFIG.panSpeed;
-    c.zoomSpeed = DEFAULT_CAMERA_CONFIG.zoomSpeed;
-    c.keyPanSpeed = DEFAULT_CAMERA_CONFIG.keyPanSpeed;
-
-    // Damping
-    c.enableDamping = DEFAULT_CAMERA_CONFIG.enableDamping;
-    c.dampingFactor = DEFAULT_CAMERA_CONFIG.dampingFactor;
-
-    // Auto rotate
-    c.autoRotate = DEFAULT_CAMERA_CONFIG.autoRotate;
-    c.autoRotateSpeed = DEFAULT_CAMERA_CONFIG.autoRotateSpeed;
-
-    // OrbitControls doesn't listen to key events by default —
-    // no need to call listenToKeyEvents(). Our WASD hook handles keyboard.
-
-    // Distance limits
-    c.minDistance = DEFAULT_CAMERA_CONFIG.minDistance;
-    c.maxDistance = DEFAULT_CAMERA_CONFIG.maxDistance;
-
-    c.update();
   }, []);
 
   // ── Load Model ──────────────────────────────────────────────────────
@@ -310,23 +333,18 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
         else if (currentModelFormat === 'splat') fileType = SplatFileType.SPLAT;
         else if (currentModelFormat === 'spz') fileType = SplatFileType.SPZ;
 
-        // Use SplatLoader for progress tracking, then create SplatMesh from PackedSplats
-        const loader = new SplatLoader();
-        if (fileType) loader.fileType = fileType;
-
-        const packedSplats = await loader.loadAsync(
-          currentModelUrl,
-          (event: ProgressEvent) => {
+        // Spark 2.0: SplatMesh handles loading directly
+        const isLodEnabled = useAppStore.getState().isLodEnabled;
+        const splatMesh = new SplatMesh({
+          url: currentModelUrl,
+          fileType,
+          lod: isLodEnabled,
+          onProgress: (event: ProgressEvent) => {
             if (event.lengthComputable && !cancelled) {
               setLoadingProgress(Math.round((event.loaded / event.total) * 100));
             }
           },
-        );
-
-        if (cancelled) return;
-
-        // Create SplatMesh from loaded data
-        const splatMesh = new SplatMesh({ packedSplats });
+        });
         await splatMesh.initialized;
 
         if (cancelled) {
@@ -357,7 +375,7 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
     load();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentModelUrl, currentModelFormat]);
+  }, [currentModelUrl, currentModelFormat, isViewerReady]); // Added isViewerReady to dependencies to ensure model loads after viewer re-init
 
   // ── Apply Angle / Distance Limits ───────────────────────────────────
   const applyLimits = useCallback(() => {

@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store';
 import { toggleLanguage } from '@/i18n';
-import { 
-  PlusIcon, 
-  SettingsIcon, 
-  ChevronLeftIcon 
+import {
+  PlusIcon,
+  SettingsIcon,
+  ChevronLeftIcon
 } from '@/components/common/Icons';
 import { Button } from '@/components/common/Button';
 import { TaskQueue } from '@/components/layout/TaskQueue';
@@ -20,11 +20,10 @@ export function Sidebar({ onUpload, children }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  
+
   const {
     sidebarOpen,
     sidebarCollapsed,
-    isLocalAccess,
     toggleSidebar,
     toggleSidebarCollapsed,
     setSettingsModalOpen,
@@ -69,13 +68,13 @@ export function Sidebar({ onUpload, children }: SidebarProps) {
   return (
     <>
       {/* Mobile overlay */}
-      <div 
+      <div
         className={`${styles.overlay} ${sidebarOpen ? styles.visible : ''}`}
         onClick={toggleSidebar}
       />
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`${styles.sidebar} ${sidebarOpen ? styles.open : ''} ${sidebarCollapsed ? styles.collapsed : ''} ${isDragOver ? styles.dragOver : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -84,33 +83,31 @@ export function Sidebar({ onUpload, children }: SidebarProps) {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.title}>
-            <a 
-              href="https://lueluelue12138.github.io/sharp-gui/" 
-              target="_blank" 
+            <a
+              href="https://lueluelue12138.github.io/sharp-gui/"
+              target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'inherit' }}
             >
-              <img 
-                src="/logo.png" 
-                alt="Sharp GUI Logo" 
-                width={30} 
+              <img
+                src="/logo.png"
+                alt="Sharp GUI Logo"
+                width={30}
                 height={30}
                 style={{ imageRendering: 'crisp-edges' }}
               />
               <span>{t('appTitle')}</span>
             </a>
-            
-            {/* Settings button (local only) */}
-            {isLocalAccess && (
-              <button 
-                className={styles.settingsBtn} 
-                onClick={() => setSettingsModalOpen(true)}
-                title={t('settings')}
-              >
-                <SettingsIcon width={16} height={16} />
-              </button>
-            )}
-            
+
+            {/* Settings button */}
+            <button
+              className={styles.settingsBtn}
+              onClick={() => setSettingsModalOpen(true)}
+              title={t('settings')}
+            >
+              <SettingsIcon width={16} height={16} />
+            </button>
+
             {/* Language toggle */}
             <button className={styles.langBtn} onClick={handleLangToggle}>
               {i18n.language === 'en' ? '中文' : 'EN'}
@@ -118,15 +115,15 @@ export function Sidebar({ onUpload, children }: SidebarProps) {
           </div>
 
           {/* Upload button */}
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             icon={<PlusIcon />}
             onClick={() => fileInputRef.current?.click()}
             className={styles.uploadBtn}
           >
             {t('generateNew')}
           </Button>
-          
+
           <input
             ref={fileInputRef}
             type="file"
@@ -145,7 +142,7 @@ export function Sidebar({ onUpload, children }: SidebarProps) {
       </aside>
 
       {/* Collapse toggle button (desktop) */}
-      <button 
+      <button
         className={`${styles.toggleBtn} ${sidebarCollapsed ? styles.toggleCollapsed : ''}`}
         onClick={toggleSidebarCollapsed}
         aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}

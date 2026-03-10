@@ -117,5 +117,13 @@
   "convertAllToSpz": "Convert All Existing Models to SPZ",
   "converting": "Converting...",
   "convertAllResult": "Converted: {{converted}}, Skipped: {{skipped}}, Failed: {{failed}} (Total: {{total}})",
+  "lodLabel": "Level-of-Detail (LOD)",
+  "lodOff": "Off (Default)",
+  "lodOn": "On",
+  "lodHint": "LOD dynamically selects optimal splats per frame based on device. Improves performance for large scenes but adds loading time.",
+  "highFidelityLabel": "High Fidelity",
+  "hfOff": "Off (Performance)",
+  "hfOn": "On",
+  "hfHint": "Unleashes native device resolution and disables anti-aliasing to restore extreme sharpness, at the cost of high performance overhead.",
   "settingsRestartWarning": "Changing workspace folder requires server restart"
 }
