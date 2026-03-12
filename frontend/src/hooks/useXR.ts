@@ -181,27 +181,9 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
 
       renderer.xr.enabled = true;
 
-      // ── Switch Spark to stochastic rendering for XR ──────────────────
-      // The default sorted alpha-blend mode uses a deferred GPU-readback sort
-      // pipeline (setTimeout → Readback.process → readRenderTargetPixelsAsync)
-      // that runs OUTSIDE the XR frame callback. On Quest 3 real hardware the
-      // XR compositor owns the GL context, so the out-of-frame readback returns
-      // corrupted data → activeSplats=0 → model vanishes (~2-3 s).
-      //
-      // Even with autoUpdate=false the frozen sort order causes the shader's
-      // view-space culling (viewCenter.z, clipCenter, clipXY) to discard more
-      // and more splats as the user moves their head, eventually making the
-      // model disappear.
-      //
-      // Stochastic mode solves both problems:
-      //  - Uses random alpha-dithering + depth test instead of sorted blending
-      //  - Indexes splats via gl_InstanceID (no sort buffer needed)
-      //  - instanceCount = numSplats (all splats always rendered)
-      //  - At 90 fps the temporal noise is imperceptible on solid regions
-      ctx.sparkRenderer.autoUpdate = false;
-      // SparkRenderer.viewpoint is public in local d.ts (line 176) but absent in
-      // the Spark version GitHub Actions resolves from the git tag — cast to access.
-      (ctx.sparkRenderer as unknown as { viewpoint: { stochastic: boolean } }).viewpoint.stochastic = true;
+      // ── Spark 2.0: stochastic mode is deprecated, sorted alpha-blend
+      // pipeline now works correctly in XR sessions. We only need to
+      // save & apply XR-optimised Spark parameters for performance.
 
       // ── Save & apply XR-optimised Spark parameters ──────────────────
       savedSparkParamsRef.current = {
@@ -211,15 +193,29 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
         minPixelRadius: ctx.sparkRenderer.minPixelRadius,
         maxPixelRadius: ctx.sparkRenderer.maxPixelRadius,
       };
-      ctx.sparkRenderer.maxStdDev = Math.sqrt(5);      // ~2.24 (default √8≈2.83)
-      ctx.sparkRenderer.minAlpha = 2 / 255;             // more aggressive cull
-      ctx.sparkRenderer.clipXY = 1.2;                   // tighter frustum clip
-      ctx.sparkRenderer.minPixelRadius = 0.25;           // cull sub-pixel splats
-      ctx.sparkRenderer.maxPixelRadius = 256;            // cap oversized splats
 
-      // Use native headset resolution — avoids rendering at desktop DPR which
-      // causes severe frame drops and possible session termination.
-      renderer.setPixelRatio(1);
+      if (mode === 'ar') {
+        // Mobile AR: aggressive culling to maintain 30fps+ on phones
+        // Phones render at high DPR and have weaker GPUs than headsets
+        ctx.sparkRenderer.maxStdDev = Math.sqrt(3);      // ~1.73 — smaller splat footprint
+        ctx.sparkRenderer.minAlpha = 10 / 255;            // skip very translucent splats
+        ctx.sparkRenderer.clipXY = 1.1;                   // tight frustum clip
+        ctx.sparkRenderer.minPixelRadius = 1.0;            // skip sub-pixel splats
+        ctx.sparkRenderer.maxPixelRadius = 256;
+        // Cap DPR: phones often have DPR 3 which is too heavy for XR
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      } else {
+        // VR (Quest etc.): moderate culling, headset handles resolution
+        ctx.sparkRenderer.maxStdDev = Math.sqrt(5);      // ~2.24 (default √8≈2.83)
+        ctx.sparkRenderer.minAlpha = 2 / 255;
+        ctx.sparkRenderer.clipXY = 1.2;
+        ctx.sparkRenderer.minPixelRadius = 0.25;
+        ctx.sparkRenderer.maxPixelRadius = 256;
+        // On real headsets WebXR manages framebuffer resolution so DPR=1 is native.
+        // On desktop WebXR emulators DPR=1 looks blurry, so cap at 2 to keep
+        // dev preview sharp without over-rendering on actual hardware.
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      }
 
       // ── AR-specific: save background, make scene transparent ────────
       if (mode === 'ar') {
@@ -411,9 +407,7 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
           }
         }
 
-        // ── Restore Spark to sorted alpha-blend mode ──────────────
-        (ctx.sparkRenderer as unknown as { viewpoint: { stochastic: boolean } }).viewpoint.stochastic = false;
-        ctx.sparkRenderer.autoUpdate = true;
+        // ── Restore Spark sorted alpha-blend mode ────────────────
 
         // Restore pre-XR Spark quality parameters
         if (savedSparkParamsRef.current) {

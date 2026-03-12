@@ -2,7 +2,6 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SparkRenderer, SplatMesh, SplatFileType } from '@sparkjsdev/spark';
-import type { SplatMeshOptions } from '@sparkjsdev/spark';
 import { useAppStore } from '@/store/useAppStore';
 import { DEFAULT_CAMERA_CONFIG } from '@/utils/camera';
 import { useKeyboard } from './useKeyboard';
@@ -197,7 +196,15 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
         // When High Fidelity is ON, set blurAmount and preBlurAmount to 0 to remove forced anti-aliasing
         const sparkRenderer = new SparkRenderer({
           renderer,
-          ...(isHighFidelity ? { blurAmount: 0, preBlurAmount: 0 } : {})
+          ...(isHighFidelity ? { blurAmount: 0, preBlurAmount: 0 } : {}),
+          // LOD: auto-adapt per platform (Quest 500K / iOS 1.5M / Desktop 2.5M)
+          // lodSplatScale multiplies the platform default — leave at 1.0 for balance
+          lodSplatScale: 1.0,
+          // Foveation: emphasise splats in front of viewer, reduce detail behind
+          behindFoveate: 0.1,
+          coneFov0: 60,
+          coneFov: 120,
+          coneFoveate: 0.5,
         });
         scene.add(sparkRenderer);
 
@@ -365,10 +372,10 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
         const splatMesh = new SplatMesh({
           url: currentModelUrl,
           fileType,
-          // Forward to Spark — currently silently ignored in v2.0.0-preview,
-          // but reserved for future LOD support in the stable release.
+          // Spark 2.0 LOD: builds LoD tree in background WebWorker (1-3s per 1M splats)
+          // Automatically renders downsampled versions within platform budget
           ...(isLodEnabled ? { lod: true } : {}),
-        } as SplatMeshOptions & { lod?: boolean });
+        });
         await splatMesh.initialized;
 
         if (cancelled) {
