@@ -277,6 +277,7 @@ export const useViewer = (containerRef: React.RefObject<HTMLDivElement | null>) 
     const resizeObserver = new ResizeObserver(() => {
       const ctx = viewerRef.current;
       if (!ctx) return;
+      if (ctx.renderer.xr.isPresenting) return;
       requestAnimationFrame(() => {
         const w = container.clientWidth;
         const h = container.clientHeight;

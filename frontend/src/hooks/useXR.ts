@@ -25,6 +25,16 @@ interface UseXRReturn {
 const VR_MOVE_SPEED = 0.05;
 const VR_TURN_SPEED = 0.03;
 const DEADZONE = 0.15;
+const VR_POSE_JUMP_THRESHOLD = 0.5;
+
+function isXrDebugLogEnabled() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem('xr-debug-log') === '1';
+  } catch {
+    return false;
+  }
+}
 
 // Mobile AR touch orbit settings
 const AR_TOUCH_ROTATE_SPEED = 0.004;
@@ -51,6 +61,7 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
   const rigRef = useRef<THREE.Group | null>(null);
   const savedBackgroundRef = useRef<THREE.Color | THREE.Texture | null>(null);
   const arTouchCleanupRef = useRef<(() => void) | null>(null);
+  const sparkUpdateInFlightRef = useRef(false);
   // Store calibrated rig home position so reset goes back to calibrated state
   const rigHomeRef = useRef<{ y: number; z: number }>({ y: 0, z: 0 });
   // Pre-XR Spark parameters saved on enter, restored on exit
@@ -60,6 +71,9 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
     clipXY: number;
     minPixelRadius: number;
     maxPixelRadius: number;
+    autoUpdate: boolean;
+    preUpdate: boolean;
+    stochastic?: boolean;
   } | null>(null);
 
   // ── Check XR support on mount ───────────────────────────────────────
@@ -192,23 +206,35 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
         clipXY: ctx.sparkRenderer.clipXY,
         minPixelRadius: ctx.sparkRenderer.minPixelRadius,
         maxPixelRadius: ctx.sparkRenderer.maxPixelRadius,
+        autoUpdate: ctx.sparkRenderer.autoUpdate,
+        preUpdate: ctx.sparkRenderer.preUpdate,
+        stochastic: (ctx.sparkRenderer as unknown as { defaultView?: { stochastic?: boolean } })
+          .defaultView?.stochastic,
       };
 
+      // Keep XR on stable sorted path and disable Spark autoUpdate.
+      // Spark internally falls back to setTimeout while XR is presenting;
+      // we'll drive update manually in the XR frame loop instead.
+      (ctx.sparkRenderer as unknown as { defaultView?: { stochastic?: boolean } })
+        .defaultView && ((ctx.sparkRenderer as unknown as { defaultView: { stochastic: boolean } })
+          .defaultView.stochastic = false);
+      ctx.sparkRenderer.autoUpdate = false;
+      ctx.sparkRenderer.preUpdate = true;
+
       if (mode === 'ar') {
-        // Mobile AR: aggressive culling to maintain 30fps+ on phones
-        // Phones render at high DPR and have weaker GPUs than headsets
-        ctx.sparkRenderer.maxStdDev = Math.sqrt(3);      // ~1.73 — smaller splat footprint
-        ctx.sparkRenderer.minAlpha = 10 / 255;            // skip very translucent splats
-        ctx.sparkRenderer.clipXY = 1.1;                   // tight frustum clip
-        ctx.sparkRenderer.minPixelRadius = 1.0;            // skip sub-pixel splats
+        // AR follows the same stability profile as VR.
+        ctx.sparkRenderer.maxStdDev = Math.sqrt(5);      // ~2.24 (default √8≈2.83)
+        ctx.sparkRenderer.minAlpha = 2 / 255;
+        ctx.sparkRenderer.clipXY = 1.35;
+        ctx.sparkRenderer.minPixelRadius = 0.25;
         ctx.sparkRenderer.maxPixelRadius = 256;
-        // Cap DPR: phones often have DPR 3 which is too heavy for XR
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       } else {
         // VR (Quest etc.): moderate culling, headset handles resolution
         ctx.sparkRenderer.maxStdDev = Math.sqrt(5);      // ~2.24 (default √8≈2.83)
         ctx.sparkRenderer.minAlpha = 2 / 255;
-        ctx.sparkRenderer.clipXY = 1.2;
+        // Slightly wider frustum margin improves stability during rapid head turns.
+        ctx.sparkRenderer.clipXY = 1.35;
         ctx.sparkRenderer.minPixelRadius = 0.25;
         ctx.sparkRenderer.maxPixelRadius = 256;
         // On real headsets WebXR manages framebuffer resolution so DPR=1 is native.
@@ -255,6 +281,10 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
       // Fix: once head height is known, offset rig Y so origin = eye level,
       // and step rig back on Z to match the default camera distance.
       let heightCalibrated = false;
+      const lastCameraLocalPos = new THREE.Vector3();
+      const currentCameraLocalPos = new THREE.Vector3();
+      const poseJump = new THREE.Vector3();
+      let hasLastCameraPos = false;
 
       // ── Mobile AR touch: orbit the RIG via touch drag ───────────────
       // On mobile AR (no controllers), let user drag to orbit around model
@@ -342,6 +372,29 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
 
       // Switch to XR animation loop
       renderer.setAnimationLoop(() => {
+        // Quest 3 / Vision Pro style pose-jump compensation.
+        // Large discontinuities in XR camera local pose can shift the local frame
+        // and trigger aggressive splat culling. We counter-shift the rig.
+        if (mode === 'vr') {
+          currentCameraLocalPos.copy(camera.position);
+          if (hasLastCameraPos) {
+            const jumpDist = currentCameraLocalPos.distanceTo(lastCameraLocalPos);
+            if (jumpDist > VR_POSE_JUMP_THRESHOLD) {
+              poseJump.copy(currentCameraLocalPos).sub(lastCameraLocalPos);
+              rig.position.sub(poseJump);
+              if (isXrDebugLogEnabled()) {
+                console.warn('[XR] Pose jump compensated', {
+                  jumpDist,
+                  jump: poseJump.toArray(),
+                  rig: rig.position.toArray(),
+                });
+              }
+            }
+          }
+          lastCameraLocalPos.copy(currentCameraLocalPos);
+          hasLastCameraPos = true;
+        }
+
         if (!heightCalibrated) {
           const xrCam = renderer.xr.getCamera();
           if (xrCam && xrCam.position.y > 0) {
@@ -357,6 +410,22 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
         }
 
         processControllerInput(session, rig);
+
+        const xrCamera = renderer.xr.getCamera();
+        if (!sparkUpdateInFlightRef.current) {
+          sparkUpdateInFlightRef.current = true;
+          void ctx.sparkRenderer
+            .update({ scene, camera: xrCamera })
+            .catch((error) => {
+              if (isXrDebugLogEnabled()) {
+                console.warn('[XR] spark update failed', error);
+              }
+            })
+            .finally(() => {
+              sparkUpdateInFlightRef.current = false;
+            });
+        }
+
         renderer.render(scene, camera);
       });
 
@@ -416,6 +485,14 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
           ctx.sparkRenderer.clipXY = savedSparkParamsRef.current.clipXY;
           ctx.sparkRenderer.minPixelRadius = savedSparkParamsRef.current.minPixelRadius;
           ctx.sparkRenderer.maxPixelRadius = savedSparkParamsRef.current.maxPixelRadius;
+          ctx.sparkRenderer.autoUpdate = savedSparkParamsRef.current.autoUpdate;
+          ctx.sparkRenderer.preUpdate = savedSparkParamsRef.current.preUpdate;
+          if (savedSparkParamsRef.current.stochastic !== undefined) {
+            const spark = ctx.sparkRenderer as unknown as { defaultView?: { stochastic?: boolean } };
+            if (spark.defaultView) {
+              spark.defaultView.stochastic = savedSparkParamsRef.current.stochastic;
+            }
+          }
           savedSparkParamsRef.current = null;
         }
 
@@ -451,6 +528,7 @@ export const useXR = ({ viewerRef }: UseXRProps): UseXRReturn => {
         });
 
         sessionRef.current = null;
+        sparkUpdateInFlightRef.current = false;
         setIsInXR(false);
         setCurrentMode(null);
       });
