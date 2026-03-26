@@ -12,6 +12,7 @@
   "dependencies": {
     "@sparkjsdev/spark": "sparkjsdev/spark#v2.0.0-preview",
     "i18next": "^25.8.0",
+    "lucide-react": "^1.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^16.5.3",

@@ -18,6 +18,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
         currentModelId,
         setLoading,
         setLoadingProgress,
+        sidebarCollapsed,
     } = useAppStore();
     
     // UI state for collapse
@@ -100,7 +101,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
     }, [currentModelId, t, setLoading, setLoadingProgress]);
 
     return (
-        <div className={`${styles.controlsWrapper} ${collapsed ? styles.collapsed : ''}`}>
+        <div className={`${styles.controlsWrapper} ${collapsed ? styles.collapsed : ''} ${!sidebarCollapsed ? styles.sidebarExpanded : ''}`}>
              {/* Collapse Arrow */}
              <div 
                 className={styles.collapseArrow}

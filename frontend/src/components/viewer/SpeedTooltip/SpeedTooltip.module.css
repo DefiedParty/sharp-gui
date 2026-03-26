@@ -26,6 +26,17 @@
     transform: translateX(-50%) translateY(0);
 }
 
+/* Offset to right when sidebar is open to maintain visual centering in the remaining space */
+@media (min-width: 769px) {
+    .tooltip {
+        transition: opacity 0.3s ease, transform 0.3s ease, left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .tooltip.sidebarExpanded {
+        left: calc(50% + (var(--sidebar-width) + 16px) / 2);
+    }
+}
+
 /* Mobile */
 @media (max-width: 768px) {
     .tooltip {

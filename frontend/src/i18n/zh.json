@@ -5,6 +5,7 @@
 
   "emptyStateTitle": "从画廊选择或生成新模型",
   "emptyStateHint": "拖拽 .ply / .splat / .spz 文件到此处预览",
+  "dragToSidebarHint": "拖拽源图片到左侧直接生成模型",
 
   "loading": "加载中...",
   "loadingModel": "正在加载模型...",

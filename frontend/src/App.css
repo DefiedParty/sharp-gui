@@ -6,6 +6,12 @@
   height: 100vh;   /* fallback */
   height: 100dvh;  /* dvh accounts for Chrome mobile address bar */
   position: relative;
+  /* Global app background spanning beneath sidebar as well to enhance glassmorphism */
+  background-image:
+    radial-gradient(at 0% 0%, rgba(200, 200, 250, 0.3) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(180, 220, 255, 0.2) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(200, 220, 250, 0.3) 0px, transparent 50%);
+  background-color: var(--bg-secondary);
 }
 
 /* Mobile menu button */
@@ -37,15 +43,17 @@
 
 /* Main content */
 .main-content {
-  flex: 1;
+  /* Make main content absolutely positioned so it spans the full screen */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  position: relative;
   overflow: hidden;
-  background-image:
-    radial-gradient(at 0% 0%, rgba(200, 200, 250, 0.3) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(180, 220, 255, 0.2) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(200, 220, 250, 0.3) 0px, transparent 50%);
+  background: transparent;
+  z-index: 10;
 }
 
 /* Viewer container */
@@ -68,6 +76,13 @@
   text-align: center;
   color: var(--text-muted);
   pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 769px) {
+  .main-content.sidebar-expanded .empty-state {
+    transform: translateX(calc((var(--sidebar-width) + 16px) / 2));
+  }
 }
 
 .empty-icon {
@@ -89,6 +104,81 @@
   margin: 0;
 }
 
+/* Drag to sidebar hint */
+.drag-to-sidebar-hint {
+  position: absolute;
+  left: calc(var(--sidebar-width) + 40px); /* 16px margin + 24px gap */
+  top: 30%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  opacity: 0;
+  animation: hint-fade-in 0.8s ease forwards 0.3s;
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .drag-to-sidebar-hint {
+    display: none;
+  }
+}
+
+.hint-arrow {
+  width: 50px;
+  height: auto;
+  color: var(--accent-blue);
+  opacity: 0.6;
+  animation: float-left-right 2s ease-in-out infinite;
+}
+
+.hint-text {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  padding: 10px 16px;
+  border-radius: var(--radius-xl);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hint-text {
+    background: rgba(30, 30, 35, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f5f5f7;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+  .hint-arrow {
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+@keyframes hint-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@keyframes float-left-right {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-5px);
+  }
+}
+
 /* Loading overlay */
 .loading-overlay {
   position: absolute;
@@ -104,6 +194,16 @@
   align-items: center;
   justify-content: center;
   animation: fadeIn 0.3s ease;
+}
+
+.loading-overlay > div {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 769px) {
+  .main-content.sidebar-expanded .loading-overlay > div {
+    transform: translateX(calc((var(--sidebar-width) + 16px) / 2));
+  }
 }
 
 @keyframes fadeIn {

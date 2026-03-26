@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '@/store';
 import styles from './SpeedTooltip.module.css';
 
 export type SpeedMode = 'fast' | 'precision' | null;
@@ -10,6 +11,7 @@ interface SpeedTooltipProps {
 
 export const SpeedTooltip: React.FC<SpeedTooltipProps> = ({ mode }) => {
     const { t } = useTranslation();
+    const sidebarCollapsed = useAppStore(state => state.sidebarCollapsed);
     
     // Keep track of the last non-null mode to prevent content flash during fadeout
     const lastModeRef = useRef<'fast' | 'precision'>('fast');
@@ -27,7 +29,7 @@ export const SpeedTooltip: React.FC<SpeedTooltipProps> = ({ mode }) => {
         : `🔍 ${t('precisionMode')}`;
     
     return (
-        <div className={`${styles.tooltip} ${mode ? styles.visible : ''}`}>
+        <div className={`${styles.tooltip} ${mode ? styles.visible : ''} ${!sidebarCollapsed ? styles.sidebarExpanded : ''}`}>
             {content}
         </div>
     );

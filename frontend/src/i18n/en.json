@@ -5,6 +5,7 @@
 
   "emptyStateTitle": "Select from gallery or generate new",
   "emptyStateHint": "Drop .ply / .splat / .spz files here to preview",
+  "dragToSidebarHint": "Drag images to sidebar to generate",
 
   "loading": "Loading...",
   "loadingModel": "Loading Model...",

@@ -22,6 +22,7 @@ function App() {
     loadingProgress,
     galleryItems,
     sidebarOpen,
+    sidebarCollapsed,
     setBootComplete, 
     setBootError,
     setGalleryItems,
@@ -176,7 +177,7 @@ function App() {
       
       {/* Main content */}
       <main 
-        className="main-content"
+        className={`main-content ${!sidebarCollapsed ? 'sidebar-expanded' : ''}`}
         onDragOver={handleMainDragOver}
         onDrop={handleModelDrop}
       >
@@ -186,13 +187,28 @@ function App() {
         <div className="viewer-container">
           {/* Empty state - shown when no model selected */}
           {!currentModelUrl && (
-            <div className="empty-state">
-              <svg className="empty-icon" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-              </svg>
-              <h3>{t('emptyStateTitle')}</h3>
-              <p>{t('emptyStateHint')}</p>
-            </div>
+            <>
+              <div className="empty-state">
+                <svg className="empty-icon" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+                </svg>
+                <h3>{t('emptyStateTitle')}</h3>
+                <p>{t('emptyStateHint')}</p>
+              </div>
+
+              {/* PC Desktop Hint for drag & drop model generation */}
+              {!sidebarCollapsed && (
+                <div className="drag-to-sidebar-hint">
+                  <svg className="hint-arrow" viewBox="0 0 60 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M 58 12 L 12 12" strokeDasharray="4 4" />
+                    <path d="M 20 4 L 12 12 L 20 20" />
+                  </svg>
+                  <div className="hint-text">
+                    {t('dragToSidebarHint')}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Viewer with internal empty state handling */}
