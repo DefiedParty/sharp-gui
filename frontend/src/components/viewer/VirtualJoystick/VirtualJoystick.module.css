@@ -17,9 +17,16 @@
     transform: scale(0.8);
     transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease,
-        box-shadow 0.2s ease;
+        box-shadow 0.2s ease, left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     touch-action: none;
     pointer-events: auto;
+}
+
+/* Offset to right when sidebar is open to avoid being covered */
+@media (min-width: 769px) {
+    .joystickWrapper.sidebarExpanded {
+        left: calc(60px + var(--sidebar-width) + 16px);
+    }
 }
 
 .joystickWrapper.visible {

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useAppStore } from '@/store';
 import styles from './VirtualJoystick.module.css';
 
 interface VirtualJoystickProps {
@@ -21,6 +22,9 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
     stickRef, 
     handlers 
 }) => {
+    // Get sidebar state to dynamically adjust joystick position
+    const { sidebarCollapsed } = useAppStore();
+
     // Use native event binding with passive: false to prevent scrolling
     // Must be called unconditionally to follow React hook rules
     useEffect(() => {
@@ -110,7 +114,7 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
     return (
         <div 
             ref={containerRef}
-            className={`${styles.joystickWrapper} ${visible ? styles.visible : ''} ${isActive ? styles.active : ''}`}
+            className={`${styles.joystickWrapper} ${visible ? styles.visible : ''} ${isActive ? styles.active : ''} ${!sidebarCollapsed ? styles.sidebarExpanded : ''}`}
             id="virtual-joystick"
         >
             <div 
