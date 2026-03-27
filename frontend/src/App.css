@@ -206,6 +206,12 @@
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  .loading-overlay {
+    background: rgba(0, 0, 0, 0.6);
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -276,4 +282,24 @@
   color: var(--error-color);
   font-size: 14px;
   margin-top: 8px;
+}
+/* Dark Mode Ext */
+@media (prefers-color-scheme: dark) {
+  .app-container {
+    background-image:
+      radial-gradient(at 0% 0%, rgba(40, 40, 80, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(30, 60, 90, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(40, 60, 80, 0.4) 0px, transparent 50%);
+  }
+  .boot-screen {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  .boot-content {
+    background: rgba(30, 30, 35, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+  .boot-content h3 {
+    color: #f5f5f7;
+  }
 }

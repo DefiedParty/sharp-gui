@@ -238,3 +238,32 @@
         flex-shrink: 0;
     }
 }
+/* Dark Mode Adaptation */
+@media (prefers-color-scheme: dark) {
+    .collapseArrow {
+        background: rgba(30, 30, 35, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .collapseArrow:hover {
+        background: rgba(50, 50, 55, 0.85);
+    }
+    .collapseArrow svg {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    .controlBtn {
+        color: #f5f5f7;
+    }
+    .controlBtn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+    .controlBtn.active, .vrBtn.active, .arBtn.active {
+        background: rgba(255, 255, 255, 0.15);
+        color: #66b3ff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        font-weight: 600;
+    }
+    .tooltip {
+        color: #f5f5f7;
+    }
+}

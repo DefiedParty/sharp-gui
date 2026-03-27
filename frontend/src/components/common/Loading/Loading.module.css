@@ -48,3 +48,16 @@
     color: var(--text-muted);
     margin-top: 8px;
 }
+/* Dark Mode Adaptation */
+@media (prefers-color-scheme: dark) {
+    .text {
+        color: #e5e5ea;
+    }
+    .spinner {
+        border-color: rgba(255, 255, 255, 0.1);
+        border-top-color: var(--accent-blue);
+    }
+    .progressBar {
+        background: rgba(255, 255, 255, 0.15);
+    }
+}
