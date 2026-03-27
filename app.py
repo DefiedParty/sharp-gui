@@ -929,14 +929,16 @@ def browse_folder():
 
 @app.route('/api/export/<model_id>')
 def export_model(model_id):
-    """导出模型为独立 HTML 文件（完全离线，优化版）
-    
-    优化措施:
-    1. PLY → .splat 格式 (每点 56 bytes → 32 bytes, 节省 43%)
-    
-    注意: 返回普通 HTML 文件 (浏览器可直接打开)
-    如需进一步压缩，请使用外部 gzip 工具
+    """导出模型为独立 HTML 文件（完全离线）。
+
+    支持 query 参数: ?format=spz|ply
+    - spz: 直接嵌入 SPZ 数据（体积更小）
+    - ply: 为兼容历史行为，先转换为 .splat 后嵌入
     """
+    fmt = request.args.get('format', 'spz').lower()
+    if fmt not in ('spz', 'ply'):
+        fmt = 'spz'
+
     # 查找 .ply 文件
     ply_filename = f"{model_id}.ply"
     ply_path = os.path.join(OUTPUT_FOLDER, ply_filename)
@@ -945,28 +947,84 @@ def export_model(model_id):
         return jsonify({'error': 'Model not found'}), 404
     
     try:
-        print(f"📦 Exporting {model_id} with optimization...")
-        
-        # 转换 PLY → .splat 格式 (更紧凑)
-        splat_data = ply_to_splat(ply_path)
-        model_data = base64.b64encode(splat_data).decode('utf-8')
-        
+        print(f"📦 Exporting {model_id} as {fmt.upper()}...")
+
         ply_size = os.path.getsize(ply_path)
-        splat_size = len(splat_data)
-        print(f"   PLY: {ply_size / 1024 / 1024:.1f}MB → Splat: {splat_size / 1024 / 1024:.1f}MB ({100 - splat_size * 100 // ply_size}% smaller)")
+
+        if fmt == 'spz':
+            spz_path = os.path.join(OUTPUT_FOLDER, f"{model_id}.spz")
+            if not os.path.exists(spz_path):
+                # 兜底：若缺失 SPZ，按需从 PLY 生成
+                spz_path = ply_to_spz(ply_path, spz_path)
+
+            with open(spz_path, 'rb') as f:
+                model_bytes = f.read()
+
+            model_size = len(model_bytes)
+            model_data = base64.b64encode(model_bytes).decode('utf-8')
+            scene_format = 'Spz'
+            print(
+                f"   PLY: {ply_size / 1024 / 1024:.1f}MB → SPZ: {model_size / 1024 / 1024:.1f}MB "
+                f"({100 - model_size * 100 // ply_size}% smaller)"
+            )
+        else:
+            # 兼容历史行为：PLY 导出路径仍使用更紧凑的 .splat 数据
+            splat_data = ply_to_splat(ply_path)
+            model_size = len(splat_data)
+            model_data = base64.b64encode(splat_data).decode('utf-8')
+            scene_format = 'Splat'
+            print(
+                f"   PLY: {ply_size / 1024 / 1024:.1f}MB → Splat: {model_size / 1024 / 1024:.1f}MB "
+                f"({100 - model_size * 100 // ply_size}% smaller)"
+            )
         
-        # 读取库文件并转 Base64 data URL
-        lib_dir = os.path.join(BASE_DIR, 'static', 'lib')
-        three_js_path = os.path.join(lib_dir, 'three.module.js')
-        splats_js_path = os.path.join(lib_dir, 'gaussian-splats-3d.module.js')
-        
-        with open(three_js_path, 'rb') as f:
-            three_js_b64 = base64.b64encode(f.read()).decode('utf-8')
-        with open(splats_js_path, 'rb') as f:
-            splats_js_b64 = base64.b64encode(f.read()).decode('utf-8')
-        
+        # 读取库文件并转 Base64 data URL（迁移到 Spark 2.0）
+        three_js_candidates = [
+            os.path.join(BASE_DIR, 'frontend', 'node_modules', 'three', 'build', 'three.module.js'),
+            os.path.join(BASE_DIR, 'static', 'lib', 'three.module.js'),
+        ]
+        orbit_controls_candidates = [
+            os.path.join(BASE_DIR, 'frontend', 'node_modules', 'three', 'examples', 'jsm', 'controls', 'OrbitControls.js'),
+        ]
+        spark_js_candidates = [
+            os.path.join(BASE_DIR, 'frontend', 'node_modules', '@sparkjsdev', 'spark', 'dist', 'spark.module.js'),
+        ]
+
+        def _pick_existing_path(candidates):
+            for p in candidates:
+                if os.path.exists(p):
+                    return p
+            raise FileNotFoundError(f"No available asset found in candidates: {candidates}")
+
+        three_js_path = _pick_existing_path(three_js_candidates)
+        orbit_controls_path = _pick_existing_path(orbit_controls_candidates)
+        spark_js_path = _pick_existing_path(spark_js_candidates)
+
+        # three r18x 的 three.module.js 内部会相对导入 ./three.core.js。
+        # data URL 模块无法解析相对路径，因此将其改写为 bare specifier（three-core），
+        # 再通过 import map 映射到独立 data URL。这样可避免把 three.core 二次嵌套进
+        # three.module 的 base64，显著降低导出体积。
+        with open(three_js_path, 'r', encoding='utf-8') as f:
+            three_module_text = f.read()
+
+        three_core_path = os.path.join(os.path.dirname(three_js_path), 'three.core.js')
+        three_core_data_url = 'data:text/javascript,export%20{};'
+        if os.path.exists(three_core_path):
+            with open(three_core_path, 'rb') as f:
+                three_core_b64 = base64.b64encode(f.read()).decode('utf-8')
+            three_core_data_url = f"data:text/javascript;base64,{three_core_b64}"
+            three_module_text = three_module_text.replace("'./three.core.js'", "'three-core'")
+            three_module_text = three_module_text.replace('"./three.core.js"', '"three-core"')
+
+        three_js_b64 = base64.b64encode(three_module_text.encode('utf-8')).decode('utf-8')
+        with open(orbit_controls_path, 'rb') as f:
+            orbit_controls_b64 = base64.b64encode(f.read()).decode('utf-8')
+        with open(spark_js_path, 'rb') as f:
+            spark_js_b64 = base64.b64encode(f.read()).decode('utf-8')
+
         three_data_url = f"data:text/javascript;base64,{three_js_b64}"
-        splats_data_url = f"data:text/javascript;base64,{splats_js_b64}"
+        orbit_controls_data_url = f"data:text/javascript;base64,{orbit_controls_b64}"
+        spark_data_url = f"data:text/javascript;base64,{spark_js_b64}"
         
         # 读取分享模板
         template_path = os.path.join(BASE_DIR, 'templates', 'share_template.html')
@@ -976,8 +1034,11 @@ def export_model(model_id):
         # 替换占位符
         html_content = template.replace('{{MODEL_DATA}}', model_data)
         html_content = html_content.replace('{{MODEL_NAME}}', model_id)
+        html_content = html_content.replace('{{SCENE_FORMAT}}', scene_format)
         html_content = html_content.replace('{{THREE_DATA_URL}}', three_data_url)
-        html_content = html_content.replace('{{SPLATS_DATA_URL}}', splats_data_url)
+        html_content = html_content.replace('{{THREE_CORE_DATA_URL}}', three_core_data_url)
+        html_content = html_content.replace('{{ORBIT_CONTROLS_DATA_URL}}', orbit_controls_data_url)
+        html_content = html_content.replace('{{SPARK_DATA_URL}}', spark_data_url)
         
         html_size = len(html_content.encode('utf-8'))
         print(f"   ✅ 导出完成: {ply_size / 1024 / 1024:.1f}MB → {html_size / 1024 / 1024:.1f}MB (原始 HTML 约 {100 * ply_size // html_size}% 大小)")
@@ -985,6 +1046,10 @@ def export_model(model_id):
         # 返回 HTML 文件 (可直接在浏览器打开)
         response = Response(html_content, mimetype='text/html')
         response.headers['Content-Disposition'] = f'attachment; filename="{model_id}_share.html"'
+        # 暴露导出元信息，供前端展示提示
+        response.headers['X-Export-Format'] = fmt
+        response.headers['X-Export-Model-Bytes'] = str(model_size)
+        response.headers['X-Export-Html-Bytes'] = str(html_size)
         return response
         
     except Exception as e:

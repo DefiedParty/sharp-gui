@@ -492,6 +492,43 @@
         opacity: 1;
         transform: translateX(-50%) translateY(0);
       }
+
+      @keyframes focus-ring {
+        0% {
+          width: 0;
+          height: 0;
+          opacity: 0;
+          border-width: 2.5px;
+        }
+        15% {
+          opacity: 0.95;
+        }
+        40% {
+          width: 36px;
+          height: 36px;
+          opacity: 0.8;
+          border-width: 2px;
+        }
+        100% {
+          width: 48px;
+          height: 48px;
+          opacity: 0;
+          border-width: 1px;
+        }
+      }
+
+      .focus-ring {
+        position: absolute;
+        pointer-events: none;
+        border: 2px solid rgba(255, 255, 255, 0.92);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow:
+          0 0 12px 2px rgba(255, 255, 255, 0.35),
+          0 0 4px rgba(255, 255, 255, 0.15);
+        z-index: 50;
+        animation: focus-ring 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
     </style>
 
     <!-- Import Map (使用内嵌 data URL) -->
@@ -499,7 +536,9 @@
       {
         "imports": {
           "three": "{{THREE_DATA_URL}}",
-          "@mkkellogg/gaussian-splats-3d": "{{SPLATS_DATA_URL}}"
+          "three-core": "{{THREE_CORE_DATA_URL}}",
+          "three/addons/controls/OrbitControls.js": "{{ORBIT_CONTROLS_DATA_URL}}",
+          "@sparkjsdev/spark": "{{SPARK_DATA_URL}}"
         }
       }
     </script>
@@ -715,13 +754,63 @@
       </button>
     </div>
 
+    <script>
+      // 兼容某些 file:// 环境不支持 fetch(blob:...) 的情况。
+      // Spark 内部可能会对 blob URL 调用 fetch，这里兜底转为 XHR。
+      (function patchBlobFetch() {
+        if (typeof window.fetch !== "function") return;
+        const nativeFetch = window.fetch.bind(window);
+
+        window.fetch = function patchedFetch(input, init) {
+          const url = typeof input === "string" ? input : input && input.url;
+
+          if (typeof url === "string" && url.startsWith("blob:")) {
+            return new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open("GET", url, true);
+              xhr.responseType = "arraybuffer";
+              xhr.onload = () => {
+                const headers = new Headers();
+                const contentType = xhr.getResponseHeader("Content-Type");
+                if (contentType) {
+                  headers.set("Content-Type", contentType);
+                }
+                resolve(
+                  new Response(xhr.response, {
+                    status: xhr.status || 200,
+                    statusText: xhr.statusText || "OK",
+                    headers,
+                  }),
+                );
+              };
+              xhr.onerror = () => reject(new TypeError("Failed to fetch blob URL"));
+              xhr.send();
+            });
+          }
+
+          return nativeFetch(input, init);
+        };
+      })();
+    </script>
+
     <script type="module">
-      import * as GaussianSplats3D from "@mkkellogg/gaussian-splats-3d";
       import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { SparkRenderer, SplatMesh, SplatFileType } from "@sparkjsdev/spark";
 
       // 模型数据 (Base64)
       const MODEL_DATA = "{{MODEL_DATA}}";
+      const SCENE_FORMAT = "{{SCENE_FORMAT}}".toLowerCase();
       let viewer = null;
+
+      function showFocusRing(x, y, container) {
+        const ring = document.createElement("div");
+        ring.className = "focus-ring";
+        ring.style.left = `${x}px`;
+        ring.style.top = `${y}px`;
+        container.appendChild(ring);
+        ring.addEventListener("animationend", () => ring.remove(), { once: true });
+      }
 
       // ═══════════════════════════════════════════════════════════════════════
       // 相机配置
@@ -977,6 +1066,8 @@
         const percentText = document.getElementById("loading-percent");
         const loadingText = document.getElementById("loading-text");
 
+        if (!progressBar || !percentText || !loadingText) return;
+
         progressBar.style.width = percent + "%";
         percentText.textContent = Math.round(percent) + "%";
         if (text) {
@@ -996,47 +1087,136 @@
           setTimeout(() => bootScreen.remove(), 500); // 动画结束后移除
         }
 
+        let progressInterval = null;
+
         try {
           updateProgress(5, "Initializing viewer...");
 
-          viewer = new GaussianSplats3D.Viewer({
-            cameraUp: [0, -1, 0],
-            initialCameraPosition: [0, 0, 1],
-            rootElement: container,
-            gpuAcceleratedSort: false,
-            sharedMemoryForWorkers: false,
-            useBuiltInControls: true,
-            selfDrivenMode: true,
+          const scene = new THREE.Scene();
+          const camera = new THREE.PerspectiveCamera(
+            75,
+            container.clientWidth / container.clientHeight,
+            0.01,
+            500,
+          );
+          camera.position.set(0, 0, 1);
+          camera.up.set(0, 1, 0);
+
+          const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          renderer.setSize(container.clientWidth, container.clientHeight);
+          container.appendChild(renderer.domElement);
+
+          const controls = new OrbitControls(camera, renderer.domElement);
+          controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
+          };
+          controls.touches = {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN,
+          };
+          controls.enableDamping = true;
+          controls.dampingFactor = 0.05;
+
+          const sparkRenderer = new SparkRenderer({
+            renderer,
+            lodSplatScale: 1.0,
           });
+          scene.add(sparkRenderer);
+
+          viewer = {
+            scene,
+            camera,
+            renderer,
+            controls,
+            cameraControls: controls,
+            sparkRenderer,
+            splatMesh: null,
+          };
+
+          // 点击锁定旋转中心（与主预览一致）
+          const raycaster = new THREE.Raycaster();
+          const ndcCoord = new THREE.Vector2();
+          let pointerDownPos = { x: 0, y: 0 };
+
+          const onPointerDown = (e) => {
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+          };
+
+          const onPointerUp = (e) => {
+            const dx = e.clientX - pointerDownPos.x;
+            const dy = e.clientY - pointerDownPos.y;
+            if (dx * dx + dy * dy > 9) return;
+
+            if (!viewer?.splatMesh) return;
+
+            const rect = renderer.domElement.getBoundingClientRect();
+            ndcCoord.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            ndcCoord.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(ndcCoord, camera);
+            const hits = raycaster.intersectObject(viewer.splatMesh);
+            if (hits.length === 0) return;
+
+            const hitPoint = hits[0].point.clone();
+            const startTarget = controls.target.clone();
+            const startTime = performance.now();
+            const dist = startTarget.distanceTo(hitPoint);
+            const duration = Math.min(600, Math.max(300, dist * 400));
+
+            function animateFocus() {
+              const elapsed = performance.now() - startTime;
+              const t = Math.min(elapsed / duration, 1);
+              const ease = 1 - Math.pow(1 - t, 4);
+              controls.target.lerpVectors(startTarget, hitPoint, ease);
+              controls.update();
+              if (t < 1) requestAnimationFrame(animateFocus);
+            }
+
+            requestAnimationFrame(animateFocus);
+            showFocusRing(e.clientX - rect.left, e.clientY - rect.top, container);
+          };
+
+          renderer.domElement.addEventListener("pointerdown", onPointerDown);
+          renderer.domElement.addEventListener("pointerup", onPointerUp);
 
           updateProgress(10, "Decoding model data...");
 
-          // 创建 Blob URL (带进度)
-          const buffer = base64ToArrayBuffer(MODEL_DATA, (p) => {
-            updateProgress(10 + p * 40, "Decoding model data...");
-          });
+          // 单文件离线场景下，直接使用 data URL，避免 blob:null 在部分环境被禁止 fetch。
+          updateProgress(45, "Preparing model data...");
+          const url = `data:application/octet-stream;base64,${MODEL_DATA}`;
 
           updateProgress(50, "Loading 3D model...");
 
-          const blob = new Blob([buffer], { type: "application/octet-stream" });
-          const url = URL.createObjectURL(blob);
+          let fileType;
+          if (SCENE_FORMAT === "spz") fileType = SplatFileType.SPZ;
+          else fileType = SplatFileType.SPLAT;
 
           // 模拟加载进度 (库不提供进度回调)
           let fakeProgress = 50;
-          const progressInterval = setInterval(() => {
+          progressInterval = setInterval(() => {
             fakeProgress += (100 - fakeProgress) * 0.1;
             if (fakeProgress < 95) {
               updateProgress(fakeProgress, "Loading 3D model...");
             }
           }, 100);
 
-          await viewer.addSplatScene(url, {
-            showLoadingUI: false,
-            position: [0, 0, 0],
-            rotation: [0, 1, 0, 0],
-            scale: [2.0, 2.0, 2.0],
-            format: GaussianSplats3D.SceneFormat.Splat,
+          const splatMesh = new SplatMesh({
+            url,
+            fileType,
+            lod: true,
           });
+          await splatMesh.initialized;
+          splatMesh.scale.setScalar(2.0);
+          splatMesh.rotation.x = Math.PI;
+          scene.add(splatMesh);
+          viewer.splatMesh = splatMesh;
+
+          controls.target.set(0, 0, 0);
+          controls.update();
+          controls.saveState();
 
           clearInterval(progressInterval);
           updateProgress(100, "Complete!");
@@ -1045,8 +1225,19 @@
             loading.classList.add("hidden");
           }, 300);
 
-          viewer.start();
-          URL.revokeObjectURL(url);
+          renderer.setAnimationLoop(() => {
+            controls.update();
+            renderer.render(scene, camera);
+          });
+
+          window.addEventListener("resize", () => {
+            if (!viewer) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            viewer.camera.aspect = width / height;
+            viewer.camera.updateProjectionMatrix();
+            viewer.renderer.setSize(width, height);
+          });
 
           // 交换鼠标左右键行为：左键=平移，右键=旋转
           // import("three").then((THREE) => {
@@ -1057,9 +1248,14 @@
           //   }
           // });
         } catch (e) {
+          if (progressInterval) {
+            clearInterval(progressInterval);
+          }
           console.error("加载失败:", e);
-          loading.innerHTML =
-            '<div style="color:#ff3b30">加载失败: ' + e.message + "</div>";
+          if (loading) {
+            loading.innerHTML =
+              '<div style="color:#ff3b30">加载失败: ' + e.message + "</div>";
+          }
         }
       }
 

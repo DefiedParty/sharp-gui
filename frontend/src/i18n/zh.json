@@ -95,6 +95,8 @@
   "generatingHtml": "生成 HTML...",
   "downloading": "下载中...",
   "exportFailed": "导出失败",
+  "exportDoneHint": "导出完成\n格式: {{format}}\n模型数据: {{modelSize}}\nHTML 文件: {{htmlSize}}",
+  "unknownSize": "未知",
 
   "selectImageFiles": "请选择图片文件",
   "uploadFailed": "上传失败",

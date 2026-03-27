@@ -95,6 +95,8 @@
   "generatingHtml": "Generating HTML...",
   "downloading": "Downloading...",
   "exportFailed": "Export failed",
+  "exportDoneHint": "Export complete\nFormat: {{format}}\nModel data: {{modelSize}}\nHTML file: {{htmlSize}}",
+  "unknownSize": "Unknown",
 
   "selectImageFiles": "Please select image files.",
   "uploadFailed": "Upload Failed",

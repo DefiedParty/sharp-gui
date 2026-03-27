@@ -28,10 +28,30 @@ export function downloadModel(id: string, format: ModelFormat = 'spz'): void {
 /**
  * Export model as standalone HTML
  */
-export async function exportModel(id: string): Promise<Blob> {
-  const response = await fetch(`/api/export/${id}`);
+export interface ExportModelResult {
+  blob: Blob;
+  formatUsed: ModelFormat;
+  modelBytes: number | null;
+  htmlBytes: number | null;
+}
+
+export async function exportModel(id: string, format: ModelFormat = 'spz'): Promise<ExportModelResult> {
+  const response = await fetch(`/api/export/${id}?format=${format}`);
   if (!response.ok) {
     throw new Error('Export failed');
   }
-  return response.blob();
+  const blob = await response.blob();
+
+  const formatHeader = response.headers.get('X-Export-Format');
+  const formatUsed: ModelFormat = formatHeader === 'ply' ? 'ply' : 'spz';
+
+  const modelBytesHeader = response.headers.get('X-Export-Model-Bytes');
+  const htmlBytesHeader = response.headers.get('X-Export-Html-Bytes');
+
+  return {
+    blob,
+    formatUsed,
+    modelBytes: modelBytesHeader ? Number(modelBytesHeader) : null,
+    htmlBytes: htmlBytesHeader ? Number(htmlBytesHeader) : null,
+  };
 }

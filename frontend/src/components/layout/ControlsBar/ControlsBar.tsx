@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store/useAppStore';
 import { exportModel } from '@/api/gallery';
+import { formatFileSize } from '@/utils';
 import * as Icons from '@/components/common/Icons';
 import styles from './ControlsBar.module.css';
 
@@ -16,6 +17,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
         isGyroEnabled, 
         toggleLimits,
         currentModelId,
+        effectiveModelFormat,
         setLoading,
         setLoadingProgress,
         sidebarCollapsed,
@@ -73,7 +75,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
         }, 200);
 
         try {
-            const blob = await exportModel(currentModelId);
+            const exportResult = await exportModel(currentModelId, effectiveModelFormat());
             clearInterval(progressInterval);
 
             // Final stages
@@ -81,7 +83,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
             setLoading(true, t('downloading'));
             
             // Create download link
-            const url = URL.createObjectURL(blob);
+            const url = URL.createObjectURL(exportResult.blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `${currentModelId}_share.html`;
@@ -91,14 +93,30 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({ viewerHook }) => {
             URL.revokeObjectURL(url);
 
             setLoadingProgress(100);
-            setTimeout(() => setLoading(false), 300);
+            setTimeout(() => {
+                setLoading(false);
+
+                const formatLabel = exportResult.formatUsed.toUpperCase();
+                const modelSize = exportResult.modelBytes !== null
+                    ? formatFileSize(exportResult.modelBytes)
+                    : t('unknownSize');
+                const htmlSize = exportResult.htmlBytes !== null
+                    ? formatFileSize(exportResult.htmlBytes)
+                    : formatFileSize(exportResult.blob.size);
+
+                alert(t('exportDoneHint', {
+                    format: formatLabel,
+                    modelSize,
+                    htmlSize,
+                }));
+            }, 300);
         } catch (e) {
             clearInterval(progressInterval);
             setLoading(false);
             const message = e instanceof Error ? e.message : 'Unknown error';
             alert(`${t('exportFailed')}: ${message}`);
         }
-    }, [currentModelId, t, setLoading, setLoadingProgress]);
+    }, [currentModelId, effectiveModelFormat, t, setLoading, setLoadingProgress]);
 
     return (
         <div className={`${styles.controlsWrapper} ${collapsed ? styles.collapsed : ''} ${!sidebarCollapsed ? styles.sidebarExpanded : ''}`}>
