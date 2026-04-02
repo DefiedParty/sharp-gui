@@ -4,7 +4,7 @@ import { useAppStore } from '@/store'
 import { fetchGallery, fetchSettings, fetchTasks, generateFromImages } from '@/api'
 import { Sidebar, Settings } from '@/components/layout'
 import { GalleryList } from '@/components/gallery'
-import { Loading } from '@/components/common'
+import { Loading, ImageViewer } from '@/components/common'
 import { ParticleBackground } from '@/components/common/ParticleBackground'
 import { ViewerCanvas } from '@/components/viewer/ViewerCanvas/ViewerCanvas'
 import { Help } from '@/components/layout/Help/Help'
@@ -231,6 +231,9 @@ function App() {
       
       {/* Help Panel - always visible */}
       <Help />
+      
+      {/* Lightbox / Image Viewer */}
+      <ImageViewer />
     </div>
   )
 }

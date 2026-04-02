@@ -129,6 +129,7 @@ Bug 修复 (install.bat):
 
 ### 规则
 
+0. 提交代码之前，确保执行前端构建脚本 `npm run build`，生成最新的 `dist/` 目录内容，并将其包含在 commit 中。这样可以确保发布版本包含最新的前端代码，让用户无需自行构建即可使用最新功能。
 1. Pre-release 版本标题带 `Pre-Release`，正式版不带
 2. Pre-release 需要顶部 `> ⚠️` 警告 blockquote，正式版不需要
 3. 章节标题使用 emoji: 🆕🎮📥🐛🔧📁🔄 等，按内容选择合适的

@@ -28,6 +28,8 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
     background-color: var(--bg-color);
     color: var(--text-primary);
+    overscroll-behavior: none;
+    touch-action: pan-x pan-y;
     display: flex;
     height: 100vh;       /* fallback for old browsers */
     height: 100dvh;      /* dvh accounts for Chrome mobile address bar */

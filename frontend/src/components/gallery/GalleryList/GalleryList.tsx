@@ -12,11 +12,11 @@ interface GalleryListProps {
 
 export function GalleryList({ items, onSelectModel }: GalleryListProps) {
   const { t } = useTranslation();
-  const { currentModelId, setGalleryItems, effectiveModelFormat } = useAppStore();
+  const { currentModelId, setGalleryItems, effectiveModelFormat, setPreviewImage } = useAppStore();
 
   const handlePreview = (item: GalleryItemType) => {
     if (item.image_url) {
-      window.open(item.image_url, '_blank');
+      setPreviewImage(item);
     }
   };
 

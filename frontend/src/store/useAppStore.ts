@@ -50,6 +50,7 @@ interface AppState {
   currentModelId: string | null;
   currentModelUrl: string | null;
   currentModelFormat: 'ply' | 'splat' | 'spz' | null; // Format hint for blob URLs
+  previewImage: GalleryItem | null; // For image lightbox
 
   // Model Format Preference
   serverModelFormat: ModelFormat;        // Host default from config.json
@@ -89,6 +90,7 @@ interface AppState {
 
   setGalleryItems: (items: GalleryItem[]) => void;
   setCurrentModel: (id: string | null, url: string | null, format?: 'ply' | 'splat' | 'spz' | null) => void;
+  setPreviewImage: (item: GalleryItem | null) => void;
 
   setServerModelFormat: (format: ModelFormat) => void;
   setLocalModelFormat: (format: ModelFormat | null) => void;
@@ -124,6 +126,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentModelId: null,
   currentModelUrl: null,
   currentModelFormat: null,
+  previewImage: null,
 
   // Model Format Preference
   serverModelFormat: 'spz',
@@ -170,6 +173,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setGalleryItems: (items) => set({ galleryItems: items }),
   setCurrentModel: (id, url, format = null) => set({ currentModelId: id, currentModelUrl: url, currentModelFormat: format }),
+  setPreviewImage: (item) => set({ previewImage: item }),
 
   setServerModelFormat: (format) => set({ serverModelFormat: format }),
   setLocalModelFormat: (format) => {

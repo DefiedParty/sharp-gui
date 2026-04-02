@@ -712,6 +712,38 @@ def download_model(item_id):
     )
 
 
+def find_original_image_filename(item_id):
+    """根据 item_id 查找原图文件名（保留真实扩展名）"""
+    for ext in ['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG', '.PNG', '.WEBP']:
+        filename = item_id + ext
+        img_path = os.path.join(INPUT_FOLDER, filename)
+        if os.path.exists(img_path):
+            return filename
+    return None
+
+
+@app.route('/api/original/<item_id>')
+def get_original_image(item_id):
+    """按图库条目 ID 获取原图，支持 inline 预览和附件下载。"""
+    filename = find_original_image_filename(item_id)
+    if not filename:
+        return jsonify({'error': 'Image not found'}), 404
+
+    download = request.args.get('download', '0').lower() in ('1', 'true', 'yes')
+    response = send_from_directory(
+        INPUT_FOLDER,
+        filename,
+        as_attachment=download,
+        download_name=filename,
+        conditional=True,
+    )
+
+    if not download:
+        response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+
+    return response
+
+
 @app.route('/api/convert-all', methods=['POST'])
 def convert_all_to_spz():
     """批量将所有现有 PLY 模型转换为 SPZ 格式 (仅本机可用)"""
