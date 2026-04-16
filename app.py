@@ -1016,9 +1016,11 @@ def export_model(model_id):
             os.path.join(BASE_DIR, 'static', 'lib', 'three.module.js'),
         ]
         orbit_controls_candidates = [
+            os.path.join(BASE_DIR, 'static', 'lib', 'OrbitControls.js'),
             os.path.join(BASE_DIR, 'frontend', 'node_modules', 'three', 'examples', 'jsm', 'controls', 'OrbitControls.js'),
         ]
         spark_js_candidates = [
+            os.path.join(BASE_DIR, 'static', 'lib', 'spark.module.js'),
             os.path.join(BASE_DIR, 'frontend', 'node_modules', '@sparkjsdev', 'spark', 'dist', 'spark.module.js'),
         ]
 
